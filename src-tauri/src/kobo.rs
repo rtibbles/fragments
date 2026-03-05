@@ -1,0 +1,153 @@
+use rusqlite::{Connection, OpenFlags};
+use std::path::Path;
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct KoboHighlight {
+    pub bookmark_id: String,
+    pub volume_id: String,
+    pub text: String,
+    pub annotation: Option<String>,
+    pub start_container_path: String,
+    pub chapter_progress: f64,
+    pub date_created: Option<String>,
+    pub book_title: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct KoboBook {
+    pub volume_id: String,
+    pub title: Option<String>,
+    pub attribution: Option<String>,
+    pub file_path: String,
+}
+
+pub fn parse_page_number(start_container_path: &str) -> Option<u64> {
+    let s = start_container_path.trim();
+    if let Ok(n) = s.parse::<u64>() {
+        return Some(n);
+    }
+    if let Some(rest) = s.strip_prefix("Page ") {
+        if let Ok(n) = rest.trim().parse::<u64>() {
+            return Some(n);
+        }
+    }
+    None
+}
+
+pub fn volume_id_to_relative_path(volume_id: &str) -> Option<String> {
+    volume_id.strip_prefix("file:///mnt/onboard/")
+        .map(|s| s.to_string())
+}
+
+pub fn is_pdf_volume(volume_id: &str) -> bool {
+    volume_id.to_lowercase().ends_with(".pdf")
+}
+
+pub fn read_highlights(kobo_db_path: &Path) -> Result<Vec<KoboHighlight>, String> {
+    let conn = Connection::open_with_flags(
+        kobo_db_path,
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    ).map_err(|e| format!("Failed to open Kobo database: {}", e))?;
+
+    let mut stmt = conn.prepare("
+        SELECT
+            b.BookmarkID,
+            b.VolumeID,
+            b.Text,
+            b.Annotation,
+            b.StartContainerPath,
+            CAST(COALESCE(b.ChapterProgress, '0') AS REAL),
+            b.DateCreated,
+            c.BookTitle
+        FROM Bookmark b
+        LEFT JOIN content c
+            ON c.ContentID = b.VolumeID
+           AND c.ContentType = 6
+        WHERE b.Text IS NOT NULL
+          AND b.Text != ''
+        ORDER BY b.VolumeID, CAST(COALESCE(b.ChapterProgress, '0') AS REAL)
+    ").map_err(|e| format!("Query failed: {}", e))?;
+
+    let highlights = stmt.query_map([], |row| {
+        Ok(KoboHighlight {
+            bookmark_id: row.get(0)?,
+            volume_id: row.get(1)?,
+            text: row.get(2)?,
+            annotation: row.get(3)?,
+            start_container_path: row.get::<_, String>(4).unwrap_or_default(),
+            chapter_progress: row.get(5).unwrap_or(0.0),
+            date_created: row.get(6)?,
+            book_title: row.get(7)?,
+        })
+    }).map_err(|e| format!("Query map failed: {}", e))?
+    .collect::<Result<Vec<_>, _>>()
+    .map_err(|e| format!("Row read failed: {}", e))?;
+
+    Ok(highlights)
+}
+
+pub fn list_pdf_books(kobo_db_path: &Path) -> Result<Vec<KoboBook>, String> {
+    let conn = Connection::open_with_flags(
+        kobo_db_path,
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    ).map_err(|e| format!("Failed to open Kobo database: {}", e))?;
+
+    let mut stmt = conn.prepare("
+        SELECT ContentID, BookTitle, Attribution
+        FROM content
+        WHERE ContentType = 6
+          AND ContentID LIKE '%.pdf'
+        ORDER BY BookTitle
+    ").map_err(|e| format!("Query failed: {}", e))?;
+
+    let books = stmt.query_map([], |row| {
+        let volume_id: String = row.get(0)?;
+        let file_path = volume_id_to_relative_path(&volume_id)
+            .unwrap_or_else(|| volume_id.clone());
+        Ok(KoboBook {
+            volume_id,
+            title: row.get(1)?,
+            attribution: row.get(2)?,
+            file_path,
+        })
+    }).map_err(|e| format!("Query map failed: {}", e))?
+    .collect::<Result<Vec<_>, _>>()
+    .map_err(|e| format!("Row read failed: {}", e))?;
+
+    Ok(books)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_page_number_integer() {
+        assert_eq!(parse_page_number("42"), Some(42));
+    }
+
+    #[test]
+    fn test_parse_page_number_prefix() {
+        assert_eq!(parse_page_number("Page 7"), Some(7));
+    }
+
+    #[test]
+    fn test_parse_page_number_invalid() {
+        assert_eq!(parse_page_number("OEBPS/chapter.xhtml"), None);
+    }
+
+    #[test]
+    fn test_volume_id_to_path() {
+        assert_eq!(
+            volume_id_to_relative_path("file:///mnt/onboard/Books/test.pdf"),
+            Some("Books/test.pdf".to_string())
+        );
+    }
+
+    #[test]
+    fn test_is_pdf_volume() {
+        assert!(is_pdf_volume("file:///mnt/onboard/Books/test.pdf"));
+        assert!(is_pdf_volume("file:///mnt/onboard/Books/test.PDF"));
+        assert!(!is_pdf_volume("file:///mnt/onboard/Books/test.epub"));
+    }
+}
