@@ -6,6 +6,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import Underline from "@tiptap/extension-underline";
 import { FragmentNode } from "../extensions/FragmentNode";
 import type { FragmentAttrs } from "../extensions/FragmentNode";
+import { FragmentAutocomplete } from "../extensions/FragmentAutocomplete";
 import { SectionNav } from "./SectionNav";
 import "./EditorPanel.css";
 
@@ -22,6 +23,7 @@ export function EditorPanel({ onEditorReady }: EditorPanelProps) {
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Underline,
       FragmentNode,
+      FragmentAutocomplete,
     ],
     content: "",
     editorProps: {
@@ -130,6 +132,14 @@ export function EditorPanel({ onEditorReady }: EditorPanelProps) {
           title="Align right"
         >
           R
+        </button>
+        <span className="editor-btn__sep" />
+        <button
+          className={`editor-btn ${(editor.storage as Record<string, any>).fragmentAutocomplete?.enabled ? "editor-btn--active" : ""}`}
+          onClick={() => editor.chain().focus().toggleAutocomplete().run()}
+          title="Toggle autocomplete"
+        >
+          AC
         </button>
       </div>
       <div className="editor-panel__body">
