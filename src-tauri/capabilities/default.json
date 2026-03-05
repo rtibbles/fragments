@@ -24,6 +24,7 @@
     },
     {
       "identifier": "http:default"
-    }
+    },
+    "dialog:default"
   ]
 }

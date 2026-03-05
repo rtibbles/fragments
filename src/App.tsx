@@ -14,6 +14,21 @@ function App() {
     editorRef.current = editor;
   }, []);
 
+  const handleLoadProject = useCallback(
+    (_id: number, contentJson: string) => {
+      const editor = editorRef.current;
+      if (editor) {
+        try {
+          const content = JSON.parse(contentJson);
+          editor.commands.setContent(content);
+        } catch {
+          editor.commands.setContent("");
+        }
+      }
+    },
+    []
+  );
+
   const handleInsertFragment = useCallback(
     (attrs: {
       sourceId: number;
@@ -39,6 +54,7 @@ function App() {
         <LibraryPanel
           collapsed={libraryCollapsed}
           onToggle={() => setLibraryCollapsed(!libraryCollapsed)}
+          onLoadProject={handleLoadProject}
         />
         <EditorPanel onEditorReady={handleEditorReady} />
         <SearchPanel onInsertFragment={handleInsertFragment} />
