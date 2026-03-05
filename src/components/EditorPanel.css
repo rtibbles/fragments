@@ -1,0 +1,17 @@
+.editor-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.editor-panel__content {
+  flex: 1;
+  padding: 24px 32px;
+  overflow-y: auto;
+}
+
+.editor-panel__placeholder {
+  opacity: 0.4;
+  font-style: italic;
+}
