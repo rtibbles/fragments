@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
+import type { Editor } from "@tiptap/react";
 import { Toolbar } from "./components/Toolbar";
 import { LibraryPanel } from "./components/LibraryPanel";
 import { EditorPanel } from "./components/EditorPanel";
@@ -7,6 +8,29 @@ import "./App.css";
 
 function App() {
   const [libraryCollapsed, setLibraryCollapsed] = useState(false);
+  const editorRef = useRef<Editor | null>(null);
+
+  const handleEditorReady = useCallback((editor: Editor) => {
+    editorRef.current = editor;
+  }, []);
+
+  const handleInsertFragment = useCallback(
+    (attrs: {
+      sourceId: number;
+      sourceTitle: string;
+      pageNumber: number;
+      originalText: string;
+      displayText: string;
+      edited: boolean;
+      rowId: number;
+    }) => {
+      const editor = editorRef.current;
+      if (editor) {
+        editor.chain().focus().insertFragment(attrs).run();
+      }
+    },
+    []
+  );
 
   return (
     <div className="app">
@@ -16,8 +40,8 @@ function App() {
           collapsed={libraryCollapsed}
           onToggle={() => setLibraryCollapsed(!libraryCollapsed)}
         />
-        <EditorPanel />
-        <SearchPanel />
+        <EditorPanel onEditorReady={handleEditorReady} />
+        <SearchPanel onInsertFragment={handleInsertFragment} />
       </div>
     </div>
   );

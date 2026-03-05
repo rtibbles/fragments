@@ -1,12 +1,19 @@
+import { useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
+import type { Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 import Underline from "@tiptap/extension-underline";
 import { FragmentNode } from "../extensions/FragmentNode";
+import type { FragmentAttrs } from "../extensions/FragmentNode";
 import { SectionNav } from "./SectionNav";
 import "./EditorPanel.css";
 
-export function EditorPanel() {
+interface EditorPanelProps {
+  onEditorReady?: (editor: Editor) => void;
+}
+
+export function EditorPanel({ onEditorReady }: EditorPanelProps) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -21,8 +28,37 @@ export function EditorPanel() {
       attributes: {
         class: "editor-panel__tiptap",
       },
+      handleDrop: (view, event) => {
+        const data = event.dataTransfer?.getData("application/x-fragment");
+        if (!data) return false;
+        event.preventDefault();
+        const attrs: FragmentAttrs = JSON.parse(data);
+        const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
+        if (pos) {
+          const tr = view.state.tr.insert(
+            pos.pos,
+            view.state.schema.nodes.fragment.create(attrs)
+          );
+          view.dispatch(tr);
+        }
+        return true;
+      },
+      handleDOMEvents: {
+        dragover: (_view, event) => {
+          if (event.dataTransfer?.types.includes("application/x-fragment")) {
+            event.preventDefault();
+          }
+          return false;
+        },
+      },
     },
   });
+
+  useEffect(() => {
+    if (editor && onEditorReady) {
+      onEditorReady(editor);
+    }
+  }, [editor, onEditorReady]);
 
   if (!editor) return null;
 
