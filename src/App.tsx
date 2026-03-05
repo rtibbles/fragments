@@ -5,6 +5,7 @@ import { LibraryPanel } from "./components/LibraryPanel";
 import { EditorPanel } from "./components/EditorPanel";
 import { SearchPanel } from "./components/SearchPanel";
 import { CitationsPanel } from "./components/CitationsPanel";
+import { useProject } from "./hooks/useProject";
 import { exportRichText } from "./utils/export";
 import "./App.css";
 
@@ -24,28 +25,23 @@ function App() {
   const [showCitations, setShowCitations] = useState(false);
   const [editorVersion, setEditorVersion] = useState(0);
   const editorRef = useRef<Editor | null>(null);
+  const [editorInstance, setEditorInstance] = useState<Editor | null>(null);
+
+  const { project, loadProject, setTitle, save } = useProject(editorInstance);
 
   const handleEditorReady = useCallback((editor: Editor) => {
     editorRef.current = editor;
-    // Track content changes to update citation references
+    setEditorInstance(editor);
     editor.on("update", () => {
       setEditorVersion((v) => v + 1);
     });
   }, []);
 
   const handleLoadProject = useCallback(
-    (_id: number, contentJson: string) => {
-      const editor = editorRef.current;
-      if (editor) {
-        try {
-          const content = JSON.parse(contentJson);
-          editor.commands.setContent(content);
-        } catch {
-          editor.commands.setContent("");
-        }
-      }
+    (id: number, _contentJson: string) => {
+      loadProject(id);
     },
-    []
+    [loadProject]
   );
 
   const handleInsertFragment = useCallback(
@@ -69,9 +65,9 @@ function App() {
   const handleExport = useCallback(async () => {
     const editor = editorRef.current;
     if (editor) {
-      await exportRichText(editor, "Untitled Poem");
+      await exportRichText(editor, project.title);
     }
-  }, []);
+  }, [project.title]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const referencedDocIds = useMemo(
@@ -82,9 +78,13 @@ function App() {
   return (
     <div className="app">
       <Toolbar
+        projectName={project.title}
+        saveStatus={project.saveStatus}
         showCitations={showCitations}
         onToggleCitations={() => setShowCitations(!showCitations)}
         onExport={handleExport}
+        onTitleChange={setTitle}
+        onSave={save}
       />
       <div className="app__workspace">
         <LibraryPanel
