@@ -2,6 +2,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 import Underline from "@tiptap/extension-underline";
+import { FragmentNode } from "../extensions/FragmentNode";
 import { SectionNav } from "./SectionNav";
 import "./EditorPanel.css";
 
@@ -13,6 +14,7 @@ export function EditorPanel() {
       }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Underline,
+      FragmentNode,
     ],
     content: "",
     editorProps: {
