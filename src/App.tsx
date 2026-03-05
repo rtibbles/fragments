@@ -5,6 +5,7 @@ import { LibraryPanel } from "./components/LibraryPanel";
 import { EditorPanel } from "./components/EditorPanel";
 import { SearchPanel } from "./components/SearchPanel";
 import { CitationsPanel } from "./components/CitationsPanel";
+import { exportRichText } from "./utils/export";
 import "./App.css";
 
 function getReferencedDocIds(editor: Editor | null): number[] {
@@ -65,6 +66,13 @@ function App() {
     []
   );
 
+  const handleExport = useCallback(async () => {
+    const editor = editorRef.current;
+    if (editor) {
+      await exportRichText(editor, "Untitled Poem");
+    }
+  }, []);
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const referencedDocIds = useMemo(
     () => getReferencedDocIds(editorRef.current),
@@ -76,6 +84,7 @@ function App() {
       <Toolbar
         showCitations={showCitations}
         onToggleCitations={() => setShowCitations(!showCitations)}
+        onExport={handleExport}
       />
       <div className="app__workspace">
         <LibraryPanel
