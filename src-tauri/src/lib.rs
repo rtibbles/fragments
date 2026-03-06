@@ -35,6 +35,7 @@ pub fn run() {
             commands::save_citation,
             commands::get_project_citations,
             commands::rebuild_search_index,
+            commands::check_for_updates,
         ])
         .setup(|app| {
             let app_dir = app.path().app_data_dir()?;

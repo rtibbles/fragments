@@ -1,5 +1,4 @@
 use crate::crossref::{self, CrossRefMetadata};
-use crate::db;
 use crate::kobo;
 use crate::pdf;
 use crate::search::SearchResult;
@@ -531,6 +530,54 @@ pub async fn get_project_citations(
     .map_err(|e| e.to_string())?;
 
     Ok(citations)
+}
+
+// --- Update Commands ---
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpdateInfo {
+    pub has_update: bool,
+    pub latest_version: String,
+    pub current_version: String,
+    pub download_url: String,
+}
+
+#[tauri::command]
+pub async fn check_for_updates() -> Result<UpdateInfo, String> {
+    let current = env!("CARGO_PKG_VERSION");
+
+    let client = reqwest::Client::builder()
+        .user_agent("fragments-app")
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let resp: serde_json::Value = client
+        .get("https://api.github.com/repos/rtibbles/fragments/releases/latest")
+        .send()
+        .await
+        .map_err(|e| e.to_string())?
+        .json()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let tag = resp["tag_name"]
+        .as_str()
+        .unwrap_or("")
+        .trim_start_matches('v');
+
+    let download_url = resp["html_url"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+
+    let has_update = !tag.is_empty() && tag != current;
+
+    Ok(UpdateInfo {
+        has_update,
+        latest_version: tag.to_string(),
+        current_version: current.to_string(),
+        download_url,
+    })
 }
 
 // --- Index Commands ---
