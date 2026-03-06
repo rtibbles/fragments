@@ -2,18 +2,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 40px;
-  padding: 0 12px;
-  border-bottom: 1px solid #ddd;
-  background: #f0f0f0;
+  height: 42px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-chrome);
   flex-shrink: 0;
-}
-
-@media (prefers-color-scheme: dark) {
-  .toolbar {
-    background: #2a2a2a;
-    border-bottom-color: #444;
-  }
+  -webkit-app-region: drag;
 }
 
 .toolbar__left,
@@ -22,6 +16,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  -webkit-app-region: no-drag;
 }
 
 .toolbar__left {
@@ -39,71 +34,70 @@
 
 .toolbar__title {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
 }
 
 .toolbar__project-name {
-  font-size: 14px;
-  opacity: 0.7;
+  font-size: 13px;
+  color: var(--text-secondary);
   cursor: default;
 }
 
 .toolbar__title-input {
-  font-size: 14px;
-  border: 1px solid #ccc;
-  border-radius: 3px;
-  padding: 2px 6px;
-  background: transparent;
-  color: inherit;
+  font-size: 13px;
+  font-family: var(--font-ui);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
   outline: none;
   text-align: center;
   width: 200px;
+  transition: border-color 0.15s;
 }
 
-@media (prefers-color-scheme: dark) {
-  .toolbar__title-input {
-    border-color: #555;
-  }
+.toolbar__title-input:focus {
+  border-color: var(--accent);
 }
 
 .toolbar__save-status {
   font-size: 11px;
-  opacity: 0.5;
+  color: var(--text-tertiary);
   margin-left: 8px;
 }
 
 .toolbar__save-status--unsaved {
-  opacity: 0.7;
-  color: #c57600;
+  color: #b8860b;
 }
 
 .toolbar__save-status--saving {
-  opacity: 0.7;
+  color: var(--text-secondary);
 }
 
 .toolbar__btn {
-  padding: 4px 12px;
+  padding: 5px 14px;
   font-size: 12px;
-  border-radius: 4px;
-  border: 1px solid #ccc;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
   background: transparent;
   cursor: pointer;
-  color: inherit;
+  color: var(--text-secondary);
+  transition: all 0.15s;
 }
 
 .toolbar__btn:hover {
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--hover);
+  color: var(--text-primary);
+  border-color: var(--text-tertiary);
 }
 
 .toolbar__btn--active {
-  background: rgba(0, 0, 0, 0.1);
-}
-
-@media (prefers-color-scheme: dark) {
-  .toolbar__btn {
-    border-color: #555;
-  }
-  .toolbar__btn:hover {
-    background: rgba(255, 255, 255, 0.05);
-  }
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
 }

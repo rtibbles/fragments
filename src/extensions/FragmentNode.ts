@@ -2,6 +2,9 @@ import { Node, mergeAttributes } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import { FragmentNodeView } from "./FragmentNodeView";
 
+export const FRAGMENT_NODE_NAME = "fragment";
+export const FRAGMENT_MIME_TYPE = "application/x-fragment";
+
 export interface FragmentAttrs {
   sourceId: number;
   sourceTitle: string;
@@ -22,7 +25,7 @@ declare module "@tiptap/core" {
 }
 
 export const FragmentNode = Node.create({
-  name: "fragment",
+  name: FRAGMENT_NODE_NAME,
   group: "inline",
   inline: true,
   atom: true,
@@ -40,13 +43,13 @@ export const FragmentNode = Node.create({
   },
 
   parseHTML() {
-    return [{ tag: 'span[data-type="fragment"]' }];
+    return [{ tag: `span[data-type="${FRAGMENT_NODE_NAME}"]` }];
   },
 
   renderHTML({ HTMLAttributes }) {
     return [
       "span",
-      mergeAttributes(HTMLAttributes, { "data-type": "fragment" }),
+      mergeAttributes(HTMLAttributes, { "data-type": FRAGMENT_NODE_NAME }),
       HTMLAttributes.displayText || "",
     ];
   },

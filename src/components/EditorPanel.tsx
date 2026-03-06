@@ -1,10 +1,10 @@
 import { useEffect } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, useEditorState, EditorContent } from "@tiptap/react";
 import type { Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 import Underline from "@tiptap/extension-underline";
-import { FragmentNode } from "../extensions/FragmentNode";
+import { FragmentNode, FRAGMENT_MIME_TYPE } from "../extensions/FragmentNode";
 import type { FragmentAttrs } from "../extensions/FragmentNode";
 import { FragmentAutocomplete } from "../extensions/FragmentAutocomplete";
 import { SectionNav } from "./SectionNav";
@@ -31,7 +31,7 @@ export function EditorPanel({ onEditorReady }: EditorPanelProps) {
         class: "editor-panel__tiptap",
       },
       handleDrop: (view, event) => {
-        const data = event.dataTransfer?.getData("application/x-fragment");
+        const data = event.dataTransfer?.getData(FRAGMENT_MIME_TYPE);
         if (!data) return false;
         event.preventDefault();
         const attrs: FragmentAttrs = JSON.parse(data);
@@ -47,12 +47,30 @@ export function EditorPanel({ onEditorReady }: EditorPanelProps) {
       },
       handleDOMEvents: {
         dragover: (_view, event) => {
-          if (event.dataTransfer?.types.includes("application/x-fragment")) {
+          if (event.dataTransfer?.types.includes(FRAGMENT_MIME_TYPE)) {
             event.preventDefault();
           }
           return false;
         },
       },
+    },
+  });
+
+  const activeStates = useEditorState({
+    editor,
+    selector: ({ editor: e }) => {
+      if (!e) return null;
+      return {
+        bold: e.isActive("bold"),
+        italic: e.isActive("italic"),
+        underline: e.isActive("underline"),
+        h1: e.isActive("heading", { level: 1 }),
+        h2: e.isActive("heading", { level: 2 }),
+        alignLeft: e.isActive({ textAlign: "left" }),
+        alignCenter: e.isActive({ textAlign: "center" }),
+        alignRight: e.isActive({ textAlign: "right" }),
+        autocomplete: (e.storage as Record<string, any>).fragmentAutocomplete?.enabled,
+      };
     },
   });
 
@@ -62,44 +80,49 @@ export function EditorPanel({ onEditorReady }: EditorPanelProps) {
     }
   }, [editor, onEditorReady]);
 
-  if (!editor) return null;
+  if (!editor || !activeStates) return null;
 
   return (
-    <div className="editor-panel">
-      <div className="editor-panel__toolbar">
+    <div className="editor-panel" data-testid="editor-panel">
+      <div className="editor-panel__toolbar" data-testid="editor-toolbar">
         <button
-          className={`editor-btn ${editor.isActive("bold") ? "editor-btn--active" : ""}`}
+          className={`editor-btn ${activeStates.bold ? "editor-btn--active" : ""}`}
           onClick={() => editor.chain().focus().toggleBold().run()}
           title="Bold"
+          data-testid="editor-btn-bold"
         >
           B
         </button>
         <button
-          className={`editor-btn ${editor.isActive("italic") ? "editor-btn--active" : ""}`}
+          className={`editor-btn ${activeStates.italic ? "editor-btn--active" : ""}`}
           onClick={() => editor.chain().focus().toggleItalic().run()}
           title="Italic"
+          data-testid="editor-btn-italic"
         >
           I
         </button>
         <button
-          className={`editor-btn ${editor.isActive("underline") ? "editor-btn--active" : ""}`}
+          className={`editor-btn ${activeStates.underline ? "editor-btn--active" : ""}`}
           onClick={() => editor.chain().focus().toggleUnderline().run()}
           title="Underline"
+          data-testid="editor-btn-underline"
         >
           U
         </button>
         <span className="editor-btn__sep" />
         <button
-          className={`editor-btn ${editor.isActive("heading", { level: 1 }) ? "editor-btn--active" : ""}`}
+          className={`editor-btn ${activeStates.h1 ? "editor-btn--active" : ""}`}
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
           title="Heading 1"
+          data-testid="editor-btn-h1"
         >
           H1
         </button>
         <button
-          className={`editor-btn ${editor.isActive("heading", { level: 2 }) ? "editor-btn--active" : ""}`}
+          className={`editor-btn ${activeStates.h2 ? "editor-btn--active" : ""}`}
           onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
           title="Heading 2"
+          data-testid="editor-btn-h2"
         >
           H2
         </button>
@@ -108,26 +131,27 @@ export function EditorPanel({ onEditorReady }: EditorPanelProps) {
           className="editor-btn"
           onClick={() => editor.chain().focus().setHorizontalRule().run()}
           title="Section divider"
+          data-testid="editor-btn-hr"
         >
           ---
         </button>
         <span className="editor-btn__sep" />
         <button
-          className={`editor-btn ${editor.isActive({ textAlign: "left" }) ? "editor-btn--active" : ""}`}
+          className={`editor-btn ${activeStates.alignLeft ? "editor-btn--active" : ""}`}
           onClick={() => editor.chain().focus().setTextAlign("left").run()}
           title="Align left"
         >
           L
         </button>
         <button
-          className={`editor-btn ${editor.isActive({ textAlign: "center" }) ? "editor-btn--active" : ""}`}
+          className={`editor-btn ${activeStates.alignCenter ? "editor-btn--active" : ""}`}
           onClick={() => editor.chain().focus().setTextAlign("center").run()}
           title="Align center"
         >
           C
         </button>
         <button
-          className={`editor-btn ${editor.isActive({ textAlign: "right" }) ? "editor-btn--active" : ""}`}
+          className={`editor-btn ${activeStates.alignRight ? "editor-btn--active" : ""}`}
           onClick={() => editor.chain().focus().setTextAlign("right").run()}
           title="Align right"
         >
@@ -135,7 +159,7 @@ export function EditorPanel({ onEditorReady }: EditorPanelProps) {
         </button>
         <span className="editor-btn__sep" />
         <button
-          className={`editor-btn ${(editor.storage as Record<string, any>).fragmentAutocomplete?.enabled ? "editor-btn--active" : ""}`}
+          className={`editor-btn ${activeStates.autocomplete ? "editor-btn--active" : ""}`}
           onClick={() => editor.chain().focus().toggleAutocomplete().run()}
           title="Toggle autocomplete"
         >
@@ -144,7 +168,15 @@ export function EditorPanel({ onEditorReady }: EditorPanelProps) {
       </div>
       <div className="editor-panel__body">
         <SectionNav editor={editor} />
-        <div className="editor-panel__content">
+        <div
+          className="editor-panel__content"
+          data-testid="editor-content"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              editor.commands.focus("end");
+            }
+          }}
+        >
           <EditorContent editor={editor} />
         </div>
       </div>

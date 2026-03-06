@@ -43,7 +43,7 @@ export function Toolbar({
   };
 
   return (
-    <div className="toolbar">
+    <div className="toolbar" data-testid="toolbar">
       <div className="toolbar__left">
         <span className="toolbar__title">Fragments</span>
       </div>
@@ -51,6 +51,7 @@ export function Toolbar({
         {editing ? (
           <input
             className="toolbar__title-input"
+            data-testid="toolbar-title-input"
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             onBlur={handleFinishEdit}
@@ -63,29 +64,34 @@ export function Toolbar({
         ) : (
           <span
             className="toolbar__project-name"
+            data-testid="toolbar-project-name"
             onDoubleClick={handleStartEdit}
             title="Double-click to rename"
           >
             {projectName}
           </span>
         )}
-        <span className={`toolbar__save-status toolbar__save-status--${saveStatus}`}>
+        <span
+          className={`toolbar__save-status toolbar__save-status--${saveStatus}`}
+          data-testid="toolbar-save-status"
+        >
           {statusLabels[saveStatus]}
         </span>
       </div>
       <div className="toolbar__right">
         {saveStatus === "unsaved" && (
-          <button className="toolbar__btn" onClick={onSave}>
+          <button className="toolbar__btn" onClick={onSave} data-testid="toolbar-save-btn">
             Save
           </button>
         )}
         <button
           className={`toolbar__btn ${showCitations ? "toolbar__btn--active" : ""}`}
           onClick={onToggleCitations}
+          data-testid="toolbar-citations-btn"
         >
           Citations
         </button>
-        <button className="toolbar__btn" onClick={onExport}>
+        <button className="toolbar__btn" onClick={onExport} data-testid="toolbar-export-btn">
           Export
         </button>
       </div>

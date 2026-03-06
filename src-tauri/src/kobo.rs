@@ -39,6 +39,7 @@ pub fn volume_id_to_relative_path(volume_id: &str) -> Option<String> {
         .map(|s| s.to_string())
 }
 
+#[cfg(test)]
 pub fn is_pdf_volume(volume_id: &str) -> bool {
     volume_id.to_lowercase().ends_with(".pdf")
 }

@@ -1,3 +1,4 @@
+import { FRAGMENT_MIME_TYPE } from "../extensions/FragmentNode";
 import "./SearchPanel.css";
 
 interface SearchResultProps {
@@ -21,7 +22,7 @@ export function SearchResult({
 }: SearchResultProps) {
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData(
-      "application/x-fragment",
+      FRAGMENT_MIME_TYPE,
       JSON.stringify({
         sourceId: rowId,
         sourceTitle,

@@ -45,6 +45,7 @@ export function ProjectList({
         <button
           className="library-panel__btn"
           onClick={() => setCreating(!creating)}
+          data-testid="project-new-btn"
         >
           + New
         </button>
@@ -75,6 +76,7 @@ export function ProjectList({
           key={project.id}
           className={`library-project ${project.id === currentProjectId ? "library-project--active" : ""}`}
           onClick={() => onLoad(project)}
+          data-testid={`project-item-${project.id}`}
         >
           <div className="library-project__title">{project.title}</div>
           <div className="library-project__date">

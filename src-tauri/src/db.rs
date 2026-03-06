@@ -1,4 +1,4 @@
-use rusqlite::{Connection, params};
+use rusqlite::Connection;
 use std::path::Path;
 
 pub fn open_database(path: &Path) -> Result<Connection, rusqlite::Error> {
@@ -89,6 +89,7 @@ fn run_migrations(conn: &Connection) -> Result<(), rusqlite::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rusqlite::params;
 
     #[test]
     fn test_open_database_creates_tables() {

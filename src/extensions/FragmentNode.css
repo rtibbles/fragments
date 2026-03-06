@@ -7,95 +7,37 @@
 .fragment-node__inner {
   display: inline;
   position: relative;
-  background: rgba(139, 115, 85, 0.12);
-  border: 1.5px solid rgba(139, 115, 85, 0.4);
-  padding: 1px 4px;
-  border-radius: 2px;
-  /* Jagged/torn edges using clip-path */
-  clip-path: polygon(
-    0% 3%,
-    4% 0%,
-    8% 4%,
-    12% 1%,
-    16% 3%,
-    20% 0%,
-    24% 2%,
-    28% 0%,
-    32% 3%,
-    36% 1%,
-    40% 4%,
-    44% 0%,
-    48% 2%,
-    52% 0%,
-    56% 3%,
-    60% 1%,
-    64% 4%,
-    68% 0%,
-    72% 2%,
-    76% 0%,
-    80% 3%,
-    84% 1%,
-    88% 4%,
-    92% 0%,
-    96% 2%,
-    100% 0%,
-    100% 97%,
-    96% 100%,
-    92% 96%,
-    88% 99%,
-    84% 97%,
-    80% 100%,
-    76% 98%,
-    72% 100%,
-    68% 97%,
-    64% 99%,
-    60% 96%,
-    56% 100%,
-    52% 98%,
-    48% 100%,
-    44% 97%,
-    40% 99%,
-    36% 96%,
-    32% 100%,
-    28% 98%,
-    24% 100%,
-    20% 97%,
-    16% 99%,
-    12% 96%,
-    8% 100%,
-    4% 98%,
-    0% 100%
-  );
+  background: var(--accent-soft);
+  border-bottom: 2px solid var(--accent);
+  padding: 1px 3px;
+  border-radius: 1px;
+  transition: background 0.12s;
+}
+
+.fragment-node:hover .fragment-node__inner {
+  background: var(--accent-mid);
 }
 
 .fragment-node--edited .fragment-node__inner {
-  background: rgba(139, 115, 85, 0.08);
-  border-style: dashed;
-}
-
-@media (prefers-color-scheme: dark) {
-  .fragment-node__inner {
-    background: rgba(200, 170, 130, 0.15);
-    border-color: rgba(200, 170, 130, 0.4);
-  }
-  .fragment-node--edited .fragment-node__inner {
-    background: rgba(200, 170, 130, 0.08);
-  }
+  background: var(--accent-soft);
+  border-bottom-style: dashed;
 }
 
 .fragment-node__text {
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
 .fragment-node__source {
   display: none;
   position: absolute;
-  bottom: -18px;
+  bottom: -20px;
   left: 0;
   font-size: 9px;
-  opacity: 0.5;
+  font-family: var(--font-ui);
+  color: var(--text-tertiary);
   white-space: nowrap;
   pointer-events: none;
+  z-index: 10;
 }
 
 .fragment-node:hover .fragment-node__source {
@@ -109,34 +51,27 @@
 
 .fragment-node__btn {
   display: inline;
-  padding: 0 3px;
+  padding: 0 4px;
   font-size: 10px;
-  border: 1px solid #ccc;
+  font-family: var(--font-ui);
+  border: 1px solid var(--border);
   border-radius: 2px;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--bg-surface);
   cursor: pointer;
-  color: #333;
+  color: var(--text-secondary);
   line-height: 1.4;
+  transition: all 0.12s;
 }
 
 .fragment-node__btn:hover {
-  background: rgba(255, 255, 255, 1);
-}
-
-@media (prefers-color-scheme: dark) {
-  .fragment-node__btn {
-    border-color: #666;
-    background: rgba(50, 50, 50, 0.8);
-    color: #ddd;
-  }
-  .fragment-node__btn:hover {
-    background: rgba(70, 70, 70, 1);
-  }
+  background: var(--hover);
+  color: var(--text-primary);
+  border-color: var(--text-tertiary);
 }
 
 .fragment-node__edit-input {
   border: none;
-  border-bottom: 1px solid #8b7355;
+  border-bottom: 1px solid var(--accent);
   background: transparent;
   font: inherit;
   font-size: inherit;

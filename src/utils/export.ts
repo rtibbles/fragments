@@ -1,69 +1,20 @@
 import type { Editor } from "@tiptap/react";
 import { invoke } from "@tauri-apps/api/core";
+import { formatChicagoBibliography } from "./chicago";
 import {
-  formatChicagoBibliography,
-  type CitationMetadata,
-} from "./chicago";
-
-interface DocumentWithMeta {
-  id: number;
-  title: string;
-  subtitle: string | null;
-  document_type: string;
-  doi: string | null;
-  isbn: string | null;
-  publisher: string | null;
-  publication_date: string | null;
-  journal_name: string | null;
-  volume: string | null;
-  issue: string | null;
-  page_range: string | null;
-  edition: string | null;
-  url: string | null;
-  container_title: string | null;
-  authors: { first_name: string; last_name: string; role: string }[];
-}
-
-function docToMeta(doc: DocumentWithMeta): CitationMetadata {
-  return {
-    title: doc.title,
-    subtitle: doc.subtitle,
-    authors: doc.authors.map((a) => ({
-      firstName: a.first_name,
-      lastName: a.last_name,
-    })),
-    publisher: doc.publisher,
-    publicationDate: doc.publication_date,
-    doi: doc.doi,
-    isbn: doc.isbn,
-    journalName: doc.journal_name,
-    volume: doc.volume,
-    issue: doc.issue,
-    pageRange: doc.page_range,
-    edition: doc.edition,
-    url: doc.url,
-    containerTitle: doc.container_title,
-    documentType: doc.document_type,
-  };
-}
-
-function formatCitationHtml(citation: string): string {
-  return citation
-    .replace(/\*([^*]+)\*/g, "<em>$1</em>")
-    .replace(/"([^"]+)"/g, "&ldquo;$1&rdquo;");
-}
+  type DocumentWithMeta,
+  docToMeta,
+  formatCitationHtml,
+  sortByAuthorLastName,
+  getReferencedDocIds,
+} from "./documents";
 
 export async function exportRichText(
   editor: Editor,
   projectTitle: string
 ): Promise<void> {
   // Get referenced document IDs
-  const docIds = new Set<number>();
-  editor.state.doc.descendants((node) => {
-    if (node.type.name === "fragment" && node.attrs.sourceId) {
-      docIds.add(node.attrs.sourceId);
-    }
-  });
+  const docIds = new Set(getReferencedDocIds(editor));
 
   // Fetch document metadata for bibliography
   let documents: DocumentWithMeta[] = [];
@@ -72,11 +23,7 @@ export async function exportRichText(
       const allDocs = await invoke<DocumentWithMeta[]>("list_documents");
       documents = allDocs
         .filter((d) => docIds.has(d.id))
-        .sort((a, b) => {
-          const aName = a.authors[0]?.last_name || a.title;
-          const bName = b.authors[0]?.last_name || b.title;
-          return aName.localeCompare(bName);
-        });
+        .sort(sortByAuthorLastName);
     } catch {
       // Continue without bibliography
     }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import type { Editor } from "@tiptap/react";
 import "./SectionNav.css";
 
@@ -13,8 +13,19 @@ interface SectionNavProps {
   editor: Editor;
 }
 
+function sectionsEqual(a: SectionItem[], b: SectionItem[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i].id !== b[i].id || a[i].label !== b[i].label || a[i].level !== b[i].level || a[i].pos !== b[i].pos) {
+      return false;
+    }
+  }
+  return true;
+}
+
 export function SectionNav({ editor }: SectionNavProps) {
   const [sections, setSections] = useState<SectionItem[]>([]);
+  const prevSectionsRef = useRef<SectionItem[]>(sections);
 
   useEffect(() => {
     const updateSections = () => {
@@ -40,7 +51,10 @@ export function SectionNav({ editor }: SectionNavProps) {
         }
       });
 
-      setSections(items);
+      if (!sectionsEqual(items, prevSectionsRef.current)) {
+        prevSectionsRef.current = items;
+        setSections(items);
+      }
     };
 
     updateSections();

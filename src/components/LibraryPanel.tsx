@@ -10,7 +10,7 @@ type Tab = "documents" | "projects";
 interface LibraryPanelProps {
   collapsed: boolean;
   onToggle: () => void;
-  onLoadProject?: (id: number, contentJson: string) => void;
+  onLoadProject?: (id: number, title: string, contentJson: string) => void;
 }
 
 export function LibraryPanel({
@@ -53,7 +53,7 @@ export function LibraryPanel({
         id: project.id,
       });
       setCurrentProjectId(project.id);
-      onLoadProject?.(project.id, contentJson);
+      onLoadProject?.(project.id, project.title, contentJson);
     } catch (err) {
       console.error("Failed to load project:", err);
     }
@@ -62,25 +62,28 @@ export function LibraryPanel({
   return (
     <div
       className={`library-panel ${collapsed ? "library-panel--collapsed" : ""}`}
+      data-testid="library-panel"
     >
       <div className="library-panel__header">
-        <button className="library-panel__toggle" onClick={onToggle}>
+        <button className="library-panel__toggle" onClick={onToggle} data-testid="library-toggle">
           {collapsed ? "▶" : "◀"}
         </button>
         {!collapsed && <span className="library-panel__title">Library</span>}
       </div>
       {!collapsed && (
         <>
-          <div className="library-panel__tabs">
+          <div className="library-panel__tabs" data-testid="library-tabs">
             <button
               className={`library-panel__tab ${tab === "documents" ? "library-panel__tab--active" : ""}`}
               onClick={() => setTab("documents")}
+              data-testid="library-tab-documents"
             >
               Documents
             </button>
             <button
               className={`library-panel__tab ${tab === "projects" ? "library-panel__tab--active" : ""}`}
               onClick={() => setTab("projects")}
+              data-testid="library-tab-projects"
             >
               Projects
             </button>

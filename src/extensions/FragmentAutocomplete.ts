@@ -8,6 +8,7 @@ import {
   AutocompleteDropdown,
   type AutocompleteItem,
 } from "./AutocompleteDropdown";
+import type { SearchResultData } from "../types/search";
 import "./AutocompleteDropdown.css";
 
 declare module "@tiptap/core" {
@@ -18,32 +19,27 @@ declare module "@tiptap/core" {
   }
 }
 
-interface SearchResultData {
-  text: string;
-  source_title: string;
-  source_id: number;
-  page_number: number;
-  is_highlight: boolean;
-  row_id: number;
-  score: number;
-}
-
 interface AutocompleteState {
   active: boolean;
   items: AutocompleteItem[];
   ghostText: string;
   cursorPos: number;
+  queryStartPos: number;
   queryText: string;
 }
+
+const CLEAR_STATE: AutocompleteState = {
+  active: false,
+  items: [],
+  ghostText: "",
+  cursorPos: 0,
+  queryStartPos: 0,
+  queryText: "",
+};
 
 const autocompletePluginKey = new PluginKey<AutocompleteState>(
   "fragmentAutocomplete"
 );
-
-function getLastWords(text: string, count: number): string {
-  const words = text.trim().split(/\s+/);
-  return words.slice(-count).join(" ");
-}
 
 export const FragmentAutocomplete = Extension.create({
   name: "fragmentAutocomplete",
@@ -68,13 +64,7 @@ export const FragmentAutocomplete = Extension.create({
             // Clear autocomplete state
             const { view } = editor;
             view.dispatch(
-              view.state.tr.setMeta(autocompletePluginKey, {
-                active: false,
-                items: [],
-                ghostText: "",
-                cursorPos: 0,
-                queryText: "",
-              })
+              view.state.tr.setMeta(autocompletePluginKey, CLEAR_STATE)
             );
           }
           return true;
@@ -91,13 +81,7 @@ export const FragmentAutocomplete = Extension.create({
 
         state: {
           init(): AutocompleteState {
-            return {
-              active: false,
-              items: [],
-              ghostText: "",
-              cursorPos: 0,
-              queryText: "",
-            };
+            return { ...CLEAR_STATE };
           },
 
           apply(tr, prev): AutocompleteState {
@@ -105,13 +89,7 @@ export const FragmentAutocomplete = Extension.create({
             if (meta) return meta;
             // If document changed, clear suggestions
             if (tr.docChanged) {
-              return {
-                active: false,
-                items: [],
-                ghostText: "",
-                cursorPos: 0,
-                queryText: "",
-              };
+              return { ...CLEAR_STATE };
             }
             return prev;
           },
@@ -144,7 +122,7 @@ export const FragmentAutocomplete = Extension.create({
 
             if (event.key === "Tab") {
               event.preventDefault();
-              // Accept the top suggestion — insert a fragment node
+              // Accept the top suggestion — replace query text with fragment node
               const item = pluginState.items[0];
               if (item) {
                 const { state } = view;
@@ -159,14 +137,12 @@ export const FragmentAutocomplete = Extension.create({
                     edited: false,
                     rowId: item.rowId,
                   });
-                  const tr = state.tr.insert(pluginState.cursorPos, node);
-                  tr.setMeta(autocompletePluginKey, {
-                    active: false,
-                    items: [],
-                    ghostText: "",
-                    cursorPos: 0,
-                    queryText: "",
-                  });
+                  const tr = state.tr.replaceWith(
+                    pluginState.queryStartPos,
+                    pluginState.cursorPos,
+                    node
+                  );
+                  tr.setMeta(autocompletePluginKey, CLEAR_STATE);
                   view.dispatch(tr);
                 }
               }
@@ -175,13 +151,7 @@ export const FragmentAutocomplete = Extension.create({
 
             if (event.key === "Escape") {
               view.dispatch(
-                view.state.tr.setMeta(autocompletePluginKey, {
-                  active: false,
-                  items: [],
-                  ghostText: "",
-                  cursorPos: 0,
-                  queryText: "",
-                })
+                view.state.tr.setMeta(autocompletePluginKey, CLEAR_STATE)
               );
               return true;
             }
@@ -224,6 +194,10 @@ export const FragmentAutocomplete = Extension.create({
               createElement(AutocompleteDropdown, {
                 items: pluginState.items,
                 onSelect: (item: AutocompleteItem) => {
+                  const currentState = autocompletePluginKey.getState(
+                    editorView.state
+                  );
+                  if (!currentState?.active) return;
                   const { state } = editorView;
                   const fragmentType = state.schema.nodes.fragment;
                   if (fragmentType) {
@@ -236,14 +210,12 @@ export const FragmentAutocomplete = Extension.create({
                       edited: false,
                       rowId: item.rowId,
                     });
-                    const tr = state.tr.insert(pluginState.cursorPos, node);
-                    tr.setMeta(autocompletePluginKey, {
-                      active: false,
-                      items: [],
-                      ghostText: "",
-                      cursorPos: 0,
-                      queryText: "",
-                    });
+                    const tr = state.tr.replaceWith(
+                      currentState.queryStartPos,
+                      currentState.cursorPos,
+                      node
+                    );
+                    tr.setMeta(autocompletePluginKey, CLEAR_STATE);
                     editorView.dispatch(tr);
                   }
                 },
@@ -272,17 +244,23 @@ export const FragmentAutocomplete = Extension.create({
 
               const pos = selection.from;
               const resolved = state.doc.resolve(pos);
+              // Use "\n" as leaf text so atom nodes map 1:1 to positions
               const textBefore = resolved.parent.textBetween(
                 0,
                 resolved.parentOffset,
-                " "
+                "\n",
+                "\n"
               );
 
-              const queryText = getLastWords(textBefore, 4);
-              if (queryText.length < 3) {
+              // Match last 1-4 words before cursor
+              const match = textBefore.match(/(\S+(?:\s+\S+){0,3})\s*$/);
+              if (!match || match[1].length < 3) {
                 container.style.display = "none";
                 return;
               }
+
+              const queryText = match[1];
+              const queryStartPos = resolved.start() + match.index!;
 
               extension.storage.debounceTimer = setTimeout(async () => {
                 try {
@@ -298,18 +276,15 @@ export const FragmentAutocomplete = Extension.create({
                   if (results.length === 0) {
                     view.dispatch(
                       view.state.tr.setMeta(autocompletePluginKey, {
-                        active: false,
-                        items: [],
-                        ghostText: "",
+                        ...CLEAR_STATE,
                         cursorPos: pos,
-                        queryText: "",
                       })
                     );
                     return;
                   }
 
                   const items: AutocompleteItem[] = results.map((r) => ({
-                    text: r.text,
+                    text: r.extract,
                     sourceTitle: r.source_title,
                     sourceId: r.source_id,
                     pageNumber: r.page_number,
@@ -317,10 +292,10 @@ export const FragmentAutocomplete = Extension.create({
                     rowId: r.row_id,
                   }));
 
-                  // Truncate ghost text to ~60 chars
+                  // Truncate ghost text to ~40 chars
                   const ghostText =
-                    items[0].text.length > 60
-                      ? items[0].text.slice(0, 60) + "…"
+                    items[0].text.length > 40
+                      ? items[0].text.slice(0, 40) + "…"
                       : items[0].text;
 
                   view.dispatch(
@@ -329,6 +304,7 @@ export const FragmentAutocomplete = Extension.create({
                       items,
                       ghostText,
                       cursorPos: pos,
+                      queryStartPos,
                       queryText,
                     })
                   );

@@ -6,12 +6,12 @@ use tantivy::{
     schema::{
         Field, IndexRecordOption, NumericOptions, OwnedValue, Schema, STORED, STRING, TEXT,
     },
+    snippet::SnippetGenerator,
 };
 
 pub struct SearchIndex {
     index: Index,
     reader: IndexReader,
-    schema: Schema,
     pub content: Field,
     pub source_title: Field,
     pub source_id: Field,
@@ -23,12 +23,100 @@ pub struct SearchIndex {
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct SearchResult {
     pub text: String,
+    pub extract: String,
     pub source_title: String,
     pub source_id: u64,
     pub page_number: u64,
     pub is_highlight: bool,
     pub row_id: u64,
     pub score: f32,
+}
+
+/// Expand a raw extract to nearby sentence/quote boundaries within the source text.
+/// Scans up to 60 characters in each direction, capped at 250 characters total.
+/// Quote marks are treated as paired: opening quotes are preferred for start
+/// boundaries, closing quotes for end boundaries.
+fn snap_to_punctuation(full_text: &str, extract: &str) -> String {
+    const MARGIN: usize = 60;
+    const MAX_CHARS: usize = 250;
+
+    let Some(byte_offset) = full_text.find(extract) else {
+        return extract.to_string();
+    };
+
+    let chars: Vec<char> = full_text.chars().collect();
+    let char_start = full_text[..byte_offset].chars().count();
+    let char_end = char_start + extract.chars().count();
+
+    fn is_sentence_stop(c: char) -> bool {
+        matches!(c, '.' | '!' | '?' | ';' | '\n')
+    }
+
+    fn is_open_quote(c: char) -> bool {
+        matches!(c, '\u{201C}' | '\u{2018}') // " '
+    }
+
+    fn is_close_quote(c: char) -> bool {
+        matches!(c, '\u{201D}' | '\u{2019}') // " '
+    }
+
+    // For straight quotes, determine direction from context
+    fn is_straight_quote(c: char) -> bool {
+        matches!(c, '"' | '\'')
+    }
+
+    // Snap start backward: prefer opening quote, then sentence stop
+    let scan_start = char_start.saturating_sub(MARGIN);
+    let mut start = scan_start;
+    for i in (scan_start..char_start).rev() {
+        let c = chars[i];
+        if is_open_quote(c) {
+            start = i; // include the opening quote
+            break;
+        }
+        if is_straight_quote(c) {
+            // Straight quote before text — treat as opening
+            start = i;
+            break;
+        }
+        if is_sentence_stop(c) {
+            start = i + 1;
+            break;
+        }
+    }
+
+    // Snap end forward: prefer closing quote, then sentence stop
+    let scan_end = (char_end + MARGIN).min(chars.len());
+    let mut end = scan_end;
+    for i in char_end..scan_end {
+        let c = chars[i];
+        if is_close_quote(c) {
+            end = i + 1; // include the closing quote
+            break;
+        }
+        if is_straight_quote(c) {
+            end = i + 1;
+            break;
+        }
+        if is_sentence_stop(c) {
+            end = i + 1;
+            break;
+        }
+    }
+
+    // Enforce max length
+    if end - start > MAX_CHARS {
+        end = (start + MAX_CHARS).min(chars.len());
+        for i in (char_end..end).rev() {
+            let c = chars[i];
+            if is_sentence_stop(c) || is_close_quote(c) || is_straight_quote(c) {
+                end = i + 1;
+                break;
+            }
+        }
+    }
+
+    chars[start..end].iter().collect::<String>().trim().to_string()
 }
 
 impl SearchIndex {
@@ -60,7 +148,7 @@ impl SearchIndex {
             .try_into()
             .map_err(|e: tantivy::TantivyError| e.to_string())?;
 
-        Ok(Self { index, reader, schema, content, source_title, source_id, page_number, is_highlight, row_id })
+        Ok(Self { index, reader, content, source_title, source_id, page_number, is_highlight, row_id })
     }
 
     pub fn writer(&self) -> Result<IndexWriter, String> {
@@ -113,6 +201,10 @@ impl SearchIndex {
         let hits = searcher.search(&final_query, &TopDocs::with_limit(limit))
             .map_err(|e| e.to_string())?;
 
+        let mut snippet_gen = SnippetGenerator::create(&searcher, &*final_query, self.content)
+            .map_err(|e| e.to_string())?;
+        snippet_gen.set_max_num_chars(150);
+
         let mut results = Vec::new();
         for (score, addr) in hits {
             let doc: TantivyDocument = searcher.doc(addr).map_err(|e| e.to_string())?;
@@ -145,8 +237,18 @@ impl SearchIndex {
                     .unwrap_or(false)
             };
 
+            let text = get_str(self.content);
+            let snippet = snippet_gen.snippet_from_doc(&doc);
+            let raw_extract: String = if snippet.is_empty() {
+                text.chars().take(150).collect()
+            } else {
+                snippet.fragment().to_string()
+            };
+            let extract = snap_to_punctuation(&text, &raw_extract);
+
             results.push(SearchResult {
-                text: get_str(self.content),
+                text,
+                extract,
                 source_title: get_str(self.source_title),
                 source_id: get_u64(self.source_id),
                 page_number: get_u64(self.page_number),

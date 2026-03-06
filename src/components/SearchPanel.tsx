@@ -1,17 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { SearchResult } from "./SearchResult";
+import type { SearchResultData } from "../types/search";
 import "./SearchPanel.css";
-
-interface SearchResultData {
-  text: string;
-  source_title: string;
-  source_id: number;
-  page_number: number;
-  is_highlight: boolean;
-  row_id: number;
-  score: number;
-}
 
 interface SearchPanelProps {
   onInsertFragment?: (attrs: {
@@ -68,18 +59,19 @@ export function SearchPanel({ onInsertFragment }: SearchPanelProps) {
       sourceId: result.source_id,
       sourceTitle: result.source_title,
       pageNumber: result.page_number,
-      originalText: result.text,
-      displayText: result.text,
+      originalText: result.extract,
+      displayText: result.extract,
       edited: false,
       rowId: result.row_id,
     });
   };
 
   return (
-    <div className="search-panel">
+    <div className="search-panel" data-testid="search-panel">
       <div className="search-panel__header">
         <input
           className="search-panel__input"
+          data-testid="search-input"
           type="text"
           placeholder="Search fragments..."
           value={query}
@@ -91,12 +83,13 @@ export function SearchPanel({ onInsertFragment }: SearchPanelProps) {
               type="checkbox"
               checked={highlightsOnly}
               onChange={(e) => setHighlightsOnly(e.target.checked)}
+              data-testid="search-highlights-checkbox"
             />
             Highlights only
           </label>
         </div>
       </div>
-      <div className="search-panel__results">
+      <div className="search-panel__results" data-testid="search-results">
         {loading && <p className="search-panel__status">Searching...</p>}
         {!loading && results.length === 0 && query.trim() && (
           <p className="search-panel__empty">No results found</p>
@@ -109,7 +102,7 @@ export function SearchPanel({ onInsertFragment }: SearchPanelProps) {
         {results.map((result) => (
           <SearchResult
             key={`${result.row_id}-${result.is_highlight}`}
-            text={result.text}
+            text={result.extract}
             sourceTitle={result.source_title}
             sourceId={result.source_id}
             pageNumber={result.page_number}

@@ -1,35 +1,27 @@
 .citations-panel {
-  border-top: 1px solid #ddd;
+  border-top: 1px solid var(--border);
   max-height: 250px;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-}
-
-@media (prefers-color-scheme: dark) {
-  .citations-panel {
-    border-top-color: #444;
-  }
+  background: var(--bg-surface);
 }
 
 .citations-panel__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  border-bottom: 1px solid #eee;
-}
-
-@media (prefers-color-scheme: dark) {
-  .citations-panel__header {
-    border-bottom-color: #333;
-  }
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-light);
 }
 
 .citations-panel__header h3 {
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
 }
 
 .citations-panel__close {
@@ -37,19 +29,24 @@
   border: none;
   font-size: 18px;
   cursor: pointer;
-  color: inherit;
+  color: var(--text-tertiary);
   padding: 0 4px;
+  transition: color 0.12s;
+}
+
+.citations-panel__close:hover {
+  color: var(--text-primary);
 }
 
 .citations-panel__body {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 12px;
+  padding: 10px 16px;
 }
 
 .citations-panel__empty {
   font-size: 13px;
-  opacity: 0.5;
+  color: var(--text-tertiary);
   font-style: italic;
   text-align: center;
   margin-top: 16px;
@@ -61,13 +58,8 @@
   text-indent: -2em;
   font-size: 13px;
   line-height: 1.5;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-@media (prefers-color-scheme: dark) {
-  .citations-panel__entry {
-    border-bottom-color: rgba(255, 255, 255, 0.06);
-  }
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-secondary);
 }
 
 .citations-panel__text em {

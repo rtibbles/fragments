@@ -8,58 +8,42 @@
 .editor-panel__toolbar {
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 4px 8px;
-  border-bottom: 1px solid #eee;
+  gap: 1px;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--border-light);
   flex-shrink: 0;
-}
-
-@media (prefers-color-scheme: dark) {
-  .editor-panel__toolbar {
-    border-bottom-color: #333;
-  }
+  background: var(--bg-surface);
 }
 
 .editor-btn {
-  padding: 4px 8px;
+  padding: 5px 10px;
   font-size: 12px;
   font-weight: 600;
+  font-family: var(--font-ui);
   border: none;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   background: transparent;
   cursor: pointer;
-  color: inherit;
-  min-width: 28px;
+  color: var(--text-secondary);
+  min-width: 30px;
+  transition: all 0.12s;
 }
 
 .editor-btn:hover {
-  background: rgba(0, 0, 0, 0.06);
+  background: var(--hover);
+  color: var(--text-primary);
 }
 
 .editor-btn--active {
-  background: rgba(0, 0, 0, 0.1);
-}
-
-@media (prefers-color-scheme: dark) {
-  .editor-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
-  }
-  .editor-btn--active {
-    background: rgba(255, 255, 255, 0.15);
-  }
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .editor-btn__sep {
   width: 1px;
-  height: 18px;
-  background: #ddd;
-  margin: 0 4px;
-}
-
-@media (prefers-color-scheme: dark) {
-  .editor-btn__sep {
-    background: #444;
-  }
+  height: 16px;
+  background: var(--border-light);
+  margin: 0 6px;
 }
 
 .editor-panel__body {
@@ -71,34 +55,76 @@
 .editor-panel__content {
   flex: 1;
   overflow-y: auto;
-  padding: 24px 32px;
+  cursor: text;
 }
 
 .editor-panel__tiptap {
   outline: none;
   min-height: 100%;
-  font-size: 16px;
-  line-height: 1.6;
+  font-family: var(--font-editor);
+  font-size: 17px;
+  line-height: 1.75;
+  color: var(--text-primary);
+  padding: 40px 24px 120px;
 }
 
 .editor-panel__tiptap p {
-  margin: 0 0 0.5em;
+  margin: 0 0 0.6em;
 }
 
-.editor-panel__tiptap h1,
-.editor-panel__tiptap h2,
+.editor-panel__tiptap p.is-editor-empty:first-child::before {
+  content: 'Begin writing...';
+  color: var(--text-tertiary);
+  font-style: italic;
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+.editor-panel__tiptap h1 {
+  font-family: var(--font-editor);
+  font-size: 1.8em;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 1.2em 0 0.5em;
+}
+
+.editor-panel__tiptap h2 {
+  font-family: var(--font-editor);
+  font-size: 1.35em;
+  font-weight: 600;
+  line-height: 1.35;
+  margin: 1em 0 0.4em;
+}
+
 .editor-panel__tiptap h3 {
-  margin: 1em 0 0.5em;
+  font-family: var(--font-editor);
+  font-size: 1.1em;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 1em 0 0.4em;
+}
+
+.editor-panel__tiptap h1:first-child,
+.editor-panel__tiptap h2:first-child,
+.editor-panel__tiptap h3:first-child {
+  margin-top: 0;
 }
 
 .editor-panel__tiptap hr {
   border: none;
-  border-top: 2px dashed #ccc;
-  margin: 1.5em 0;
+  border-top: 1px solid var(--border);
+  margin: 2em 0;
 }
 
-@media (prefers-color-scheme: dark) {
-  .editor-panel__tiptap hr {
-    border-top-color: #555;
-  }
+.editor-panel__tiptap blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 1em;
+  margin: 1em 0;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.editor-panel__tiptap strong {
+  font-weight: 600;
 }

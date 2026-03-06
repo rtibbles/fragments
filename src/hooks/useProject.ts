@@ -1,3 +1,4 @@
+import type React from "react";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { Editor } from "@tiptap/react";
@@ -10,15 +11,13 @@ export interface ProjectState {
   saveStatus: SaveStatus;
 }
 
-export function useProject(editor: Editor | null) {
+export function useProject(editorRef: React.RefObject<Editor | null>) {
   const [project, setProject] = useState<ProjectState>({
     id: null,
     title: "Untitled Poem",
     saveStatus: "saved",
   });
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const editorRef = useRef(editor);
-  editorRef.current = editor;
 
   const save = useCallback(async () => {
     const ed = editorRef.current;
@@ -51,6 +50,7 @@ export function useProject(editor: Editor | null) {
 
   // Debounced auto-save on content changes
   useEffect(() => {
+    const editor = editorRef.current;
     if (!editor) return;
     const handler = () => {
       markUnsaved();
@@ -64,39 +64,31 @@ export function useProject(editor: Editor | null) {
       editor.off("update", handler);
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [editor, save, markUnsaved]);
+  }, [editorRef, save, markUnsaved]);
 
   const loadProject = useCallback(
-    async (id: number) => {
-      try {
-        const contentJson = await invoke<string>("load_project", { id });
-        // Get project title from the list
-        const projects = await invoke<{ id: number; title: string }[]>(
-          "list_projects"
-        );
-        const proj = projects.find((p) => p.id === id);
-        setProject({
-          id,
-          title: proj?.title || "Untitled Poem",
-          saveStatus: "saved",
-        });
-        if (editor) {
-          try {
-            const content = JSON.parse(contentJson);
-            editor.commands.setContent(content);
-          } catch {
-            editor.commands.setContent("");
-          }
+    (id: number, title: string, contentJson: string) => {
+      setProject({
+        id,
+        title,
+        saveStatus: "saved",
+      });
+      const editor = editorRef.current;
+      if (editor) {
+        try {
+          const content = JSON.parse(contentJson);
+          editor.commands.setContent(content);
+        } catch {
+          editor.commands.setContent("");
         }
-      } catch (err) {
-        console.error("Load failed:", err);
       }
     },
-    [editor]
+    [editorRef]
   );
 
   const createProject = useCallback(
     async (title: string) => {
+      const editor = editorRef.current;
       const contentJson = editor
         ? JSON.stringify(editor.getJSON())
         : JSON.stringify({ type: "doc", content: [] });
@@ -111,7 +103,7 @@ export function useProject(editor: Editor | null) {
         console.error("Create failed:", err);
       }
     },
-    [editor]
+    [editorRef]
   );
 
   const setTitle = useCallback((title: string) => {
