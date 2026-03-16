@@ -15,9 +15,9 @@ pub struct PdfMetadata {
 pub struct PdfAnnotation {
     pub page_number: u64,
     pub text: String,
-    pub annotation_type: String,
+    pub _annotation_type: String,
     pub date_created: Option<String>,
-    pub author: Option<String>,
+    pub _author: Option<String>,
 }
 
 pub fn extract_pages(path: &Path) -> Result<Vec<ExtractedPage>, String> {
@@ -180,9 +180,9 @@ pub fn extract_annotations(path: &Path) -> Result<Vec<PdfAnnotation>, String> {
             annotations.push(PdfAnnotation {
                 page_number: page_num as u64,
                 text,
-                annotation_type: annotation_type.to_string(),
+                _annotation_type: annotation_type.to_string(),
                 date_created,
-                author,
+                _author: author,
             });
         }
     }
@@ -329,8 +329,8 @@ mod tests {
         assert_eq!(annots.len(), 1);
         assert_eq!(annots[0].text, "Important passage");
         assert_eq!(annots[0].page_number, 1);
-        assert_eq!(annots[0].annotation_type, "highlight");
-        assert_eq!(annots[0].author, Some("testuser".to_string()));
+        assert_eq!(annots[0]._annotation_type, "highlight");
+        assert_eq!(annots[0]._author, Some("testuser".to_string()));
         assert!(annots[0].date_created.is_some());
     }
 
