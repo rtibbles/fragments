@@ -105,55 +105,156 @@ pub struct DocumentMetadata {
     pub authors: Vec<AuthorInfo>,
 }
 
+struct BookImportData {
+    full_path: String,
+    volume_id: String,
+    title: String,
+    authors: Vec<AuthorInfo>,
+    doi: Option<String>,
+    pages: Vec<pdf::ExtractedPage>,
+    annotations: Vec<pdf::PdfAnnotation>,
+    subtitle: Option<String>,
+    publisher: Option<String>,
+    publication_date: Option<String>,
+    document_type: String,
+    container_title: Option<String>,
+    volume: Option<String>,
+    issue: Option<String>,
+    page_range: Option<String>,
+    isbn: Option<String>,
+    url: Option<String>,
+}
+
 // --- Import Commands ---
 
 #[tauri::command]
 pub async fn import_pdf(path: String, state: State<'_, AppState>) -> Result<i64, String> {
-    let pages = pdf::extract_pages(std::path::Path::new(&path))?;
+    let pdf_path = std::path::Path::new(&path);
+    let pages = pdf::extract_pages(pdf_path)?;
     let doi = pdf::extract_doi(&pages);
     let now = chrono::Local::now().format("%Y-%m-%d").to_string();
 
-    let title = std::path::Path::new(&path)
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("Untitled")
-        .to_string();
+    // Extract PDF metadata
+    let pdf_meta = pdf::extract_metadata(pdf_path).unwrap_or(pdf::PdfMetadata {
+        title: None,
+        author: None,
+    });
+
+    // Extract PDF annotations
+    let annotations = pdf::extract_annotations(pdf_path).unwrap_or_default();
+
+    // Resolve title: PDF /Title -> filename
+    let local_title = pdf_meta.title.clone()
+        .unwrap_or_else(|| {
+            std::path::Path::new(&path)
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("Untitled")
+                .to_string()
+        });
+
+    // Resolve author from PDF metadata
+    let local_authors: Vec<AuthorInfo> = pdf_meta.author.as_deref()
+        .filter(|s| !s.is_empty())
+        .map(|s| {
+            let (first, last) = kobo::parse_attribution(s);
+            vec![AuthorInfo {
+                first_name: first,
+                last_name: last,
+                role: "author".to_string(),
+                position: 0,
+            }]
+        })
+        .unwrap_or_default();
+
+    // CrossRef enrichment (best-effort)
+    let crossref_meta = if let Some(ref d) = doi {
+        crossref::lookup_doi(d).await.ok().flatten()
+    } else {
+        crossref::search_works(&local_title, 1).await
+            .ok()
+            .and_then(|mut v| if v.is_empty() { None } else { Some(v.remove(0)) })
+    };
+
+    // Use CrossRef data if available
+    let (title, authors, final_doi, subtitle, publisher, pub_date, doc_type, container_title, vol, iss, pg_range, isbn_val, url_val) =
+        if let Some(cr) = crossref_meta {
+            let cr_authors: Vec<AuthorInfo> = cr.authors.iter().enumerate().map(|(i, a)| {
+                AuthorInfo {
+                    first_name: a.given.clone().unwrap_or_default(),
+                    last_name: a.family.clone(),
+                    role: "author".to_string(),
+                    position: i as i32,
+                }
+            }).collect();
+            (
+                cr.title, if cr_authors.is_empty() { local_authors } else { cr_authors },
+                Some(cr.doi), cr.subtitle, cr.publisher, cr.publication_date,
+                cr.document_type, cr.container_title, cr.volume, cr.issue,
+                cr.page_range, cr.isbn, cr.url,
+            )
+        } else {
+            (local_title, local_authors, doi, None, None, None, "book".to_string(), None, None, None, None, None, None)
+        };
 
     let db = state.db.lock().map_err(|e| e.to_string())?;
 
-    let doc_id = {
-        db.execute(
-            "INSERT INTO documents (title, document_type, file_path, import_date, doi)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![title, "book", path, now, doi],
-        ).map_err(|e| e.to_string())?;
-        db.last_insert_rowid()
-    };
+    db.execute(
+        "INSERT INTO documents (title, subtitle, document_type, file_path, import_date, doi, publisher, publication_date, container_title, volume, issue, page_range, isbn, url)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+        params![title, subtitle, doc_type, path, now, final_doi, publisher, pub_date, container_title, vol, iss, pg_range, isbn_val, url_val],
+    ).map_err(|e| e.to_string())?;
+    let doc_id = db.last_insert_rowid();
 
+    // Insert authors
+    for author in &authors {
+        db.execute(
+            "INSERT INTO authors (document_id, first_name, last_name, role, position)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![doc_id, author.first_name, author.last_name, author.role, author.position],
+        ).map_err(|e| e.to_string())?;
+    }
+
+    // Insert chunks and index
+    let search = state.search.lock().map_err(|e| e.to_string())?;
+    let mut writer = search.writer()?;
     for page in &pages {
         db.execute(
             "INSERT INTO chunks (document_id, content, page_number, position)
              VALUES (?1, ?2, ?3, ?4)",
             params![doc_id, page.text, page.page_number as i64, page.page_number as i64],
         ).map_err(|e| e.to_string())?;
-    }
 
-    // Index in Tantivy
-    let search = state.search.lock().map_err(|e| e.to_string())?;
-    let mut writer = search.writer()?;
-    for page in &pages {
-        let chunk_id = db.query_row(
-            "SELECT id FROM chunks WHERE document_id = ?1 AND page_number = ?2",
-            params![doc_id, page.page_number as i64],
-            |row| row.get::<_, i64>(0),
-        ).map_err(|e| e.to_string())?;
-
+        let chunk_id = db.last_insert_rowid();
         search.add_chunk(
             &mut writer,
             &page.text, &title, doc_id as u64,
             page.page_number, false, chunk_id as u64,
         )?;
     }
+
+    // Insert PDF annotations as highlights
+    for annot in &annotations {
+        let chunk_id: Option<i64> = db.query_row(
+            "SELECT id FROM chunks WHERE document_id = ?1 AND page_number = ?2",
+            params![doc_id, annot.page_number as i64],
+            |row| row.get(0),
+        ).ok();
+
+        db.execute(
+            "INSERT INTO highlights (document_id, chunk_id, text, annotation, date_created)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![doc_id, chunk_id, annot.text, None::<String>, annot.date_created],
+        ).map_err(|e| e.to_string())?;
+
+        let highlight_id = db.last_insert_rowid();
+        search.add_chunk(
+            &mut writer,
+            &annot.text, &title, doc_id as u64,
+            annot.page_number, true, highlight_id as u64,
+        )?;
+    }
+
     writer.commit().map_err(|e| e.to_string())?;
     search.reload()?;
 
@@ -161,15 +262,18 @@ pub async fn import_pdf(path: String, state: State<'_, AppState>) -> Result<i64,
 }
 
 #[tauri::command]
-pub async fn import_kobo(db_path: String, mount_path: String, state: State<'_, AppState>) -> Result<Vec<i64>, String> {
+pub async fn import_kobo(
+    db_path: String,
+    mount_path: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<i64>, String> {
     let kobo_db = std::path::Path::new(&db_path);
     let highlights = kobo::read_highlights(kobo_db)?;
     let books = kobo::list_pdf_books(kobo_db)?;
     let now = chrono::Local::now().format("%Y-%m-%d").to_string();
-    let db = state.db.lock().map_err(|e| e.to_string())?;
-    let search = state.search.lock().map_err(|e| e.to_string())?;
-    let mut writer = search.writer()?;
-    let mut imported_ids = Vec::new();
+
+    // Phase 1: Collect data for each book (no locks held, async CrossRef OK)
+    let mut prepared_books: Vec<BookImportData> = Vec::new();
 
     for book in &books {
         let full_path = format!("{}/{}", mount_path, book.file_path);
@@ -179,35 +283,177 @@ pub async fn import_kobo(db_path: String, mount_path: String, state: State<'_, A
             continue;
         }
 
-        // Check if already imported
-        let exists: bool = db.query_row(
-            "SELECT COUNT(*) > 0 FROM documents WHERE file_path = ?1",
-            params![full_path],
-            |row| row.get(0),
-        ).unwrap_or(false);
-
-        if exists {
-            continue;
+        // Check if already imported (brief lock)
+        {
+            let db = state.db.lock().map_err(|e| e.to_string())?;
+            let exists: bool = db.query_row(
+                "SELECT COUNT(*) > 0 FROM documents WHERE file_path = ?1",
+                params![full_path],
+                |row| row.get(0),
+            ).unwrap_or(false);
+            if exists {
+                continue;
+            }
         }
 
-        let title = book.title.clone().unwrap_or_else(|| "Untitled".into());
-
-        // Extract and import PDF text
+        // Extract pages and DOI
         let pages = match pdf::extract_pages(pdf_path) {
             Ok(p) => p,
             Err(_) => continue,
         };
         let doi = pdf::extract_doi(&pages);
 
+        // Extract PDF metadata
+        let pdf_meta = pdf::extract_metadata(pdf_path).unwrap_or(pdf::PdfMetadata {
+            title: None,
+            author: None,
+        });
+
+        // Extract PDF annotations
+        let annotations = pdf::extract_annotations(pdf_path).unwrap_or_default();
+
+        // Resolve title: Kobo BookTitle -> PDF /Title -> filename
+        let title = book.title.clone()
+            .filter(|s| !s.is_empty())
+            .or(pdf_meta.title)
+            .unwrap_or_else(|| {
+                std::path::Path::new(&book.file_path)
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("Untitled")
+                    .to_string()
+            });
+
+        // Resolve author: Kobo Attribution -> PDF /Author -> none
+        let local_authors: Vec<AuthorInfo> = book.attribution.as_deref()
+            .filter(|s| !s.is_empty())
+            .map(|s| {
+                let (first, last) = kobo::parse_attribution(s);
+                vec![AuthorInfo {
+                    first_name: first,
+                    last_name: last,
+                    role: "author".to_string(),
+                    position: 0,
+                }]
+            })
+            .or_else(|| {
+                pdf_meta.author.as_deref().map(|s| {
+                    let (first, last) = kobo::parse_attribution(s);
+                    vec![AuthorInfo {
+                        first_name: first,
+                        last_name: last,
+                        role: "author".to_string(),
+                        position: 0,
+                    }]
+                })
+            })
+            .unwrap_or_default();
+
+        // Attempt CrossRef enrichment (best-effort)
+        let crossref_meta = if let Some(ref d) = doi {
+            crossref::lookup_doi(d).await.ok().flatten()
+        } else {
+            crossref::search_works(&title, 1).await
+                .ok()
+                .and_then(|mut v| if v.is_empty() { None } else { Some(v.remove(0)) })
+        };
+
+        // Build final import data, preferring CrossRef when available
+        let import = if let Some(cr) = crossref_meta {
+            let cr_authors: Vec<AuthorInfo> = cr.authors.iter().enumerate().map(|(i, a)| {
+                AuthorInfo {
+                    first_name: a.given.clone().unwrap_or_default(),
+                    last_name: a.family.clone(),
+                    role: "author".to_string(),
+                    position: i as i32,
+                }
+            }).collect();
+
+            BookImportData {
+                full_path,
+                volume_id: book.volume_id.clone(),
+                title: cr.title,
+                authors: if cr_authors.is_empty() { local_authors } else { cr_authors },
+                doi: Some(cr.doi),
+                pages,
+                annotations,
+                subtitle: cr.subtitle,
+                publisher: cr.publisher,
+                publication_date: cr.publication_date,
+                document_type: cr.document_type,
+                container_title: cr.container_title,
+                volume: cr.volume,
+                issue: cr.issue,
+                page_range: cr.page_range,
+                isbn: cr.isbn,
+                url: cr.url,
+            }
+        } else {
+            BookImportData {
+                full_path,
+                volume_id: book.volume_id.clone(),
+                title,
+                authors: local_authors,
+                doi,
+                pages,
+                annotations,
+                subtitle: None,
+                publisher: None,
+                publication_date: None,
+                document_type: "book".to_string(),
+                container_title: None,
+                volume: None,
+                issue: None,
+                page_range: None,
+                isbn: None,
+                url: None,
+            }
+        };
+
+        prepared_books.push(import);
+    }
+
+    // Phase 2: Insert everything under locks
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    let search = state.search.lock().map_err(|e| e.to_string())?;
+    let mut writer = search.writer()?;
+    let mut imported_ids = Vec::new();
+
+    for book in &prepared_books {
+        // Double-check not imported (race condition guard)
+        let exists: bool = db.query_row(
+            "SELECT COUNT(*) > 0 FROM documents WHERE file_path = ?1",
+            params![book.full_path],
+            |row| row.get(0),
+        ).unwrap_or(false);
+        if exists {
+            continue;
+        }
+
         db.execute(
-            "INSERT INTO documents (title, document_type, file_path, import_date, doi)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![title, "book", full_path, now, doi],
+            "INSERT INTO documents (title, subtitle, document_type, file_path, import_date, doi, publisher, publication_date, container_title, volume, issue, page_range, isbn, url)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+            params![
+                book.title, book.subtitle, book.document_type, book.full_path,
+                now, book.doi, book.publisher, book.publication_date,
+                book.container_title, book.volume, book.issue, book.page_range,
+                book.isbn, book.url
+            ],
         ).map_err(|e| e.to_string())?;
         let doc_id = db.last_insert_rowid();
         imported_ids.push(doc_id);
 
-        for page in &pages {
+        // Insert authors
+        for author in &book.authors {
+            db.execute(
+                "INSERT INTO authors (document_id, first_name, last_name, role, position)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![doc_id, author.first_name, author.last_name, author.role, author.position],
+            ).map_err(|e| e.to_string())?;
+        }
+
+        // Insert chunks and index
+        for page in &book.pages {
             db.execute(
                 "INSERT INTO chunks (document_id, content, page_number, position)
                  VALUES (?1, ?2, ?3, ?4)",
@@ -217,40 +463,63 @@ pub async fn import_kobo(db_path: String, mount_path: String, state: State<'_, A
             let chunk_id = db.last_insert_rowid();
             search.add_chunk(
                 &mut writer,
-                &page.text, &title, doc_id as u64,
+                &page.text, &book.title, doc_id as u64,
                 page.page_number, false, chunk_id as u64,
             )?;
         }
 
-        // Import highlights for this book
-        let book_highlights: Vec<_> = highlights.iter()
-            .filter(|h| h.volume_id == book.volume_id)
-            .collect();
-
-        for h in book_highlights {
-            let page_num = kobo::parse_page_number(&h.start_container_path);
-
-            // Try to find matching chunk
-            let chunk_id: Option<i64> = page_num.and_then(|pn| {
-                db.query_row(
-                    "SELECT id FROM chunks WHERE document_id = ?1 AND page_number = ?2",
-                    params![doc_id, pn as i64],
-                    |row| row.get(0),
-                ).ok()
-            });
+        // Insert PDF annotations as highlights
+        let has_pdf_annotations = !book.annotations.is_empty();
+        for annot in &book.annotations {
+            let chunk_id: Option<i64> = db.query_row(
+                "SELECT id FROM chunks WHERE document_id = ?1 AND page_number = ?2",
+                params![doc_id, annot.page_number as i64],
+                |row| row.get(0),
+            ).ok();
 
             db.execute(
-                "INSERT INTO highlights (document_id, chunk_id, text, annotation, kobo_chapter_progress, kobo_volume_id, date_created)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                params![doc_id, chunk_id, h.text, h.annotation, h.chapter_progress, h.volume_id, h.date_created],
+                "INSERT INTO highlights (document_id, chunk_id, text, annotation, date_created)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![doc_id, chunk_id, annot.text, None::<String>, annot.date_created],
             ).map_err(|e| e.to_string())?;
 
             let highlight_id = db.last_insert_rowid();
             search.add_chunk(
                 &mut writer,
-                &h.text, &title, doc_id as u64,
-                page_num.unwrap_or(0), true, highlight_id as u64,
+                &annot.text, &book.title, doc_id as u64,
+                annot.page_number, true, highlight_id as u64,
             )?;
+        }
+
+        // Insert Kobo DB highlights (secondary source — skip for PDFs with annotations)
+        if !has_pdf_annotations {
+            let book_highlights: Vec<_> = highlights.iter()
+                .filter(|h| h.volume_id == book.volume_id)
+                .collect();
+
+            for h in book_highlights {
+                let page_num = kobo::parse_page_number(&h.start_container_path);
+                let chunk_id: Option<i64> = page_num.and_then(|pn| {
+                    db.query_row(
+                        "SELECT id FROM chunks WHERE document_id = ?1 AND page_number = ?2",
+                        params![doc_id, pn as i64],
+                        |row| row.get(0),
+                    ).ok()
+                });
+
+                db.execute(
+                    "INSERT INTO highlights (document_id, chunk_id, text, annotation, kobo_chapter_progress, kobo_volume_id, date_created)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                    params![doc_id, chunk_id, h.text, h.annotation, h.chapter_progress, h.volume_id, h.date_created],
+                ).map_err(|e| e.to_string())?;
+
+                let highlight_id = db.last_insert_rowid();
+                search.add_chunk(
+                    &mut writer,
+                    &h.text, &book.title, doc_id as u64,
+                    page_num.unwrap_or(0), true, highlight_id as u64,
+                )?;
+            }
         }
     }
 
