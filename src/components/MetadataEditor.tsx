@@ -79,6 +79,31 @@ export function MetadataEditor({
     }
   };
 
+  const handleRetryCrossref = async () => {
+    setSearching(true);
+    try {
+      if (doi.trim()) {
+        const result = await invoke<CrossRefResult>("lookup_doi", {
+          doi: doi.trim(),
+        });
+        if (result) {
+          applyMetadata(result);
+        }
+      } else {
+        const results = await invoke<CrossRefResult[]>("search_crossref", {
+          query: title,
+        });
+        if (results.length > 0) {
+          setCrossrefResults(results);
+        }
+      }
+    } catch (err) {
+      console.error("CrossRef retry failed:", err);
+    } finally {
+      setSearching(false);
+    }
+  };
+
   const applyMetadata = (meta: CrossRefResult) => {
     setTitle(meta.title || title);
     setSubtitle(meta.subtitle || "");
@@ -343,6 +368,13 @@ export function MetadataEditor({
         </div>
 
         <div className="metadata-editor__footer">
+          <button
+            className="library-panel__btn"
+            onClick={handleRetryCrossref}
+            disabled={searching}
+          >
+            {searching ? "Looking up..." : "Retry CrossRef"}
+          </button>
           <button className="library-panel__btn" onClick={onClose}>
             Cancel
           </button>
