@@ -155,12 +155,17 @@ src/
     CitationsPanel.tsx        reads from project state + CorpusContext
     SectionNav.tsx            unchanged
   extensions/
-    (fragment node)           unchanged — carries docId + page
+    FragmentNode.ts           UPDATED — sourceId: number → docId: string;
+                               rowId dropped (chunks identified by docId+page)
+    FragmentNodeView.tsx      UPDATED — consumes new attr shape
   utils/
-    chicago.ts                unchanged
+    chicago.ts                unchanged (CitationMetadata shape stays the same)
     search.ts                 NEW — ported snap_to_punctuation + snippet carving
     export.ts                 unchanged
-    documents.ts              unchanged (getReferencedDocIds still applies)
+    documents.ts              REWRITTEN — DocumentWithMeta now mirrors corpus
+                               JSON shape (string id, CSV field names); docToMeta
+                               maps journal_or_source → CitationMetadata.journalName;
+                               getReferencedDocIds returns string[]
   types/                      updated to match corpus.json shape
 ```
 
@@ -191,7 +196,7 @@ Delete:
 - `tsconfig.e2e.json`
 
 Edit:
-- `package.json`: drop `@tauri-apps/*`, `@wdio/*`, `webdriverio`; drop `tauri`, `test:build`, `test:e2e` scripts; add `build:corpus` that wraps the uv-run invocation for convenience.
+- `package.json`: drop `@tauri-apps/*`, `@wdio/*`, `webdriverio`; drop `tauri`, `test:build`, `test:e2e` scripts. Add `vitest`, `@testing-library/react`, `@testing-library/jest-dom`, `jsdom`, `minisearch` (runtime), and a `test` script. Add a `build:corpus` script that wraps the uv-run invocation for convenience.
 - `README.md`: rewrite — remove Tauri/Rust prerequisites and build/test sections; add a "Building the corpus" section pointing at `scripts/build_corpus.py` and documenting the expected `mfa_thesis` layout; add a short "Deployment" note about GitHub Pages.
 
 Add:
@@ -200,6 +205,7 @@ Add:
 - `src/context/CorpusContext.tsx`
 - `src/hooks/useCorpus.ts`
 - `src/utils/search.ts`
+- `vitest.config.ts` (or extend `vite.config.ts`)
 - `.github/workflows/pages.yml`
 
 ### Error handling
