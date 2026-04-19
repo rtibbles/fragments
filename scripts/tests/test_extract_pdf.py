@@ -10,3 +10,11 @@ def test_chunk_text_captures_content(fixtures_dir: Path):
     chunks = extract_pdf(fixtures_dir / "sample.pdf")
     assert "Alpha bravo" in chunks[0]["text"]
     assert "Another page" in chunks[1]["text"]
+
+def test_blank_pages_are_skipped(tmp_path: Path):
+    import pymupdf
+    blank = tmp_path / "blank.pdf"
+    doc = pymupdf.open()
+    doc.new_page()  # no text inserted
+    doc.save(blank)
+    assert extract_pdf(blank) == []
