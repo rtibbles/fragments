@@ -1,19 +1,16 @@
-import { useState, useEffect, useCallback } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { formatChicagoBibliography } from "../utils/chicago";
 import {
-  type DocumentWithMeta,
   docToMeta,
   formatCitationHtml,
   sortByAuthorLastName,
 } from "../utils/documents";
+import { useCorpusContext } from "../context/CorpusContext";
 import "./CitationsPanel.css";
 
 interface CitationsPanelProps {
   visible: boolean;
   onClose: () => void;
-  /** IDs of documents referenced by fragments in the editor */
-  referencedDocIds: number[];
+  referencedDocIds: string[];
 }
 
 export function CitationsPanel({
@@ -21,26 +18,13 @@ export function CitationsPanel({
   onClose,
   referencedDocIds,
 }: CitationsPanelProps) {
-  const [documents, setDocuments] = useState<DocumentWithMeta[]>([]);
-
-  const loadDocuments = useCallback(async () => {
-    try {
-      const docs = await invoke<DocumentWithMeta[]>("list_documents");
-      setDocuments(docs);
-    } catch {
-      setDocuments([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (visible) loadDocuments();
-  }, [visible, loadDocuments]);
+  const { documents } = useCorpusContext();
 
   if (!visible) return null;
 
-  // Filter to only referenced documents, sorted by author last name
+  const refSet = new Set(referencedDocIds);
   const referencedDocs = documents
-    .filter((d) => referencedDocIds.includes(d.id))
+    .filter((d) => refSet.has(d.id))
     .sort(sortByAuthorLastName);
 
   return (
@@ -63,9 +47,7 @@ export function CitationsPanel({
             <div key={doc.id} className="citations-panel__entry">
               <span
                 className="citations-panel__text"
-                dangerouslySetInnerHTML={{
-                  __html: formatCitationHtml(citation),
-                }}
+                dangerouslySetInnerHTML={{ __html: formatCitationHtml(citation) }}
               />
             </div>
           );
