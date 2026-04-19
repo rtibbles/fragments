@@ -12,3 +12,8 @@ def test_frontmatter_is_stripped(fixtures_dir: Path):
     chunks = extract_markdown(fixtures_dir / "sample_with_frontmatter.md")
     assert "title: Thing" not in chunks[0]["text"]
     assert "Body only." in chunks[0]["text"]
+
+def test_empty_body_returns_no_chunks(tmp_path: Path):
+    md = tmp_path / "empty.md"
+    md.write_text("---\ntitle: Only frontmatter\n---\n\n   \n", encoding="utf-8")
+    assert extract_markdown(md) == []
