@@ -1,5 +1,19 @@
 from pathlib import Path
-from scripts.corpus_builder.extract_pdf import extract_pdf
+from scripts.corpus_builder.extract_pdf import extract_pdf, normalize
+
+def test_normalize_rejoins_hyphenated_line_breaks():
+    assert normalize("every-\nbody went home") == "everybody went home"
+
+def test_normalize_collapses_single_newline_to_space():
+    assert normalize("first line\nsecond line") == "first line second line"
+
+def test_normalize_preserves_paragraph_breaks():
+    out = normalize("para one\nhas two lines\n\npara two")
+    assert out == "para one has two lines\n\npara two"
+
+def test_normalize_collapses_repeated_spaces():
+    assert normalize("word   another") == "word another"
+
 
 def test_returns_one_chunk_per_nonempty_page(fixtures_dir: Path):
     chunks = extract_pdf(fixtures_dir / "sample.pdf")

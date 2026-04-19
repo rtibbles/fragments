@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { SearchResult } from "./SearchResult";
 import { useCorpusContext } from "../context/CorpusContext";
-import { carveSnippet } from "../utils/search";
 import type { SearchHit } from "../types/corpus";
 import type { FragmentAttrs } from "../extensions/FragmentNode";
 import "./SearchPanel.css";
@@ -31,7 +30,6 @@ export function SearchPanel({ onInsertFragment }: SearchPanelProps) {
       docId: string;
       page: number;
       text: string;
-      match: Record<string, unknown>;
     };
     const raw = miniSearch.search(trimmed) as unknown as StoredResult[];
     const withDoc = raw
@@ -46,7 +44,7 @@ export function SearchPanel({ onInsertFragment }: SearchPanelProps) {
       docId: doc.id,
       page: r.page,
       text: r.text,
-      extract: carveSnippet(r.text, Object.keys(r.match ?? {})),
+      extract: r.text,
       score: r.score,
       sourceTitle: doc.title,
     }));

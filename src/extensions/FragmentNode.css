@@ -25,6 +25,7 @@
 
 .fragment-node__text {
   opacity: 0.9;
+  cursor: text;
 }
 
 .fragment-node__source {
@@ -67,6 +68,17 @@
   background: var(--hover);
   color: var(--text-primary);
   border-color: var(--text-tertiary);
+}
+
+.fragment-node__btn--dissolve {
+  margin-left: 4px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.fragment-node:hover .fragment-node__btn--dissolve,
+.fragment-node__btn--dissolve:focus {
+  opacity: 1;
 }
 
 .fragment-node__edit-input {

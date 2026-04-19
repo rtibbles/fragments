@@ -1,25 +1,35 @@
 import { NodeViewWrapper } from "@tiptap/react";
 import type { NodeViewProps } from "@tiptap/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./FragmentNode.css";
 
 export function FragmentNodeView({ node, updateAttributes, editor }: NodeViewProps) {
+  const displayText: string = node.attrs.displayText || node.attrs.originalText;
   const [isEditing, setIsEditing] = useState(false);
-  const [editText, setEditText] = useState(node.attrs.displayText || node.attrs.originalText);
-  const [showControls, setShowControls] = useState(false);
+  const [editText, setEditText] = useState(displayText);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const displayText = node.attrs.displayText || node.attrs.originalText;
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      const input = inputRef.current;
+      input.focus();
+      input.select();
+    }
+  }, [isEditing]);
 
-  const handleEdit = () => {
-    setEditText(displayText);
-    setIsEditing(true);
+  const commit = () => {
+    const next = editText.trim();
+    if (next && next !== displayText) {
+      updateAttributes({
+        displayText: next,
+        edited: next !== node.attrs.originalText,
+      });
+    }
+    setIsEditing(false);
   };
 
-  const handleSave = () => {
-    updateAttributes({
-      displayText: editText,
-      edited: editText !== node.attrs.originalText,
-    });
+  const cancel = () => {
+    setEditText(displayText);
     setIsEditing(false);
   };
 
@@ -32,12 +42,13 @@ export function FragmentNodeView({ node, updateAttributes, editor }: NodeViewPro
     editor.commands.dissolveFragment();
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      handleSave();
+      commit();
     } else if (e.key === "Escape") {
-      setIsEditing(false);
+      e.preventDefault();
+      cancel();
     }
   };
 
@@ -46,42 +57,42 @@ export function FragmentNodeView({ node, updateAttributes, editor }: NodeViewPro
       as="span"
       className={`fragment-node ${node.attrs.edited ? "fragment-node--edited" : ""}`}
       data-fragment-id={`${node.attrs.docId}:${node.attrs.pageNumber}`}
-      onMouseEnter={() => setShowControls(true)}
-      onMouseLeave={() => setShowControls(false)}
     >
       <span className="fragment-node__inner">
         {isEditing ? (
           <input
+            ref={inputRef}
             className="fragment-node__edit-input"
             value={editText}
             onChange={(e) => setEditText(e.target.value)}
-            onBlur={handleSave}
+            onBlur={commit}
             onKeyDown={handleKeyDown}
-            autoFocus
           />
         ) : (
-          <span className="fragment-node__text">{displayText}</span>
-        )}
-        {showControls && !isEditing && (
-          <span className="fragment-node__controls">
-            <button
-              className="fragment-node__btn"
-              onClick={handleEdit}
-              title="Edit text"
-            >
-              e
-            </button>
-            <button
-              className="fragment-node__btn"
-              onClick={handleDissolve}
-              title="Dissolve to plain text"
-            >
-              d
-            </button>
+          <span
+            className="fragment-node__text"
+            onClick={() => {
+              setEditText(displayText);
+              setIsEditing(true);
+            }}
+            title="Click to edit"
+          >
+            {displayText}
           </span>
         )}
+        <button
+          className="fragment-node__btn fragment-node__btn--dissolve"
+          onClick={handleDissolve}
+          title="Dissolve to plain text"
+          aria-label="Dissolve fragment"
+        >
+          ×
+        </button>
       </span>
-      <span className="fragment-node__source" title={`${node.attrs.sourceTitle}, p. ${node.attrs.pageNumber}`}>
+      <span
+        className="fragment-node__source"
+        title={`${node.attrs.sourceTitle}, p. ${node.attrs.pageNumber}`}
+      >
         {node.attrs.sourceTitle}
       </span>
     </NodeViewWrapper>

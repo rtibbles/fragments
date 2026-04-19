@@ -30,6 +30,23 @@ interface ChunkDoc {
   text: string;
 }
 
+const MIN_SENTENCE_CHARS = 12;
+const MAX_SENTENCE_CHARS = 400;
+
+/**
+ * Split a page's text into sentence-sized fragments. Intentionally simple:
+ * splits on `.!?` followed by whitespace and a capital letter or quote.
+ * Occasional multi-sentence or mid-abbreviation splits are acceptable —
+ * the output is meant for found poetry, not grammatical analysis.
+ */
+export function splitSentences(text: string): string[] {
+  return text
+    .split(/(?<=[.!?])\s+(?=[A-Z\u201C"'])/)
+    .flatMap((s) => s.split(/\n{2,}/))
+    .map((s) => s.replace(/\s+/g, " ").trim())
+    .filter((s) => s.length >= MIN_SENTENCE_CHARS && s.length <= MAX_SENTENCE_CHARS);
+}
+
 export function buildMiniSearch(documents: CorpusDocument[]): MiniSearch<ChunkDoc> {
   const ms = new MiniSearch<ChunkDoc>({
     fields: ["text"],
@@ -39,11 +56,14 @@ export function buildMiniSearch(documents: CorpusDocument[]): MiniSearch<ChunkDo
   const chunks: ChunkDoc[] = [];
   for (const doc of documents) {
     for (const chunk of doc.chunks) {
-      chunks.push({
-        id: `${doc.id}:${chunk.page}`,
-        docId: doc.id,
-        page: chunk.page,
-        text: chunk.text,
+      const sentences = splitSentences(chunk.text);
+      sentences.forEach((sentence, idx) => {
+        chunks.push({
+          id: `${doc.id}:${chunk.page}:${idx}`,
+          docId: doc.id,
+          page: chunk.page,
+          text: sentence,
+        });
       });
     }
   }
