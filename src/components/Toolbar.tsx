@@ -6,6 +6,7 @@ interface ToolbarProps {
   showCitations?: boolean;
   onToggleCitations?: () => void;
   onCopy?: () => Promise<void> | void;
+  onNew?: () => void;
   onTitleChange?: (title: string) => void;
   storageWarning?: string | null;
 }
@@ -15,6 +16,7 @@ export function Toolbar({
   showCitations,
   onToggleCitations,
   onCopy,
+  onNew,
   onTitleChange,
   storageWarning,
 }: ToolbarProps) {
@@ -47,6 +49,13 @@ export function Toolbar({
       setCopyState("copied");
     } catch {
       setCopyState("failed");
+    }
+  };
+
+  const handleNew = () => {
+    if (!onNew) return;
+    if (window.confirm("Start a new document? This will clear the current one.")) {
+      onNew();
     }
   };
 
@@ -86,6 +95,14 @@ export function Toolbar({
         )}
       </div>
       <div className="toolbar__right">
+        <button
+          className="toolbar__btn"
+          onClick={handleNew}
+          data-testid="toolbar-new-btn"
+          title="Start a new document"
+        >
+          New
+        </button>
         <button
           className={`toolbar__btn ${showCitations ? "toolbar__btn--active" : ""}`}
           onClick={onToggleCitations}

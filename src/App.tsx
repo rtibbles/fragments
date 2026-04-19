@@ -7,6 +7,7 @@ import { CitationsPanel } from "./components/CitationsPanel";
 import { CorpusProvider, useCorpusContext } from "./context/CorpusContext";
 import { useCorpus } from "./hooks/useCorpus";
 import { useProject } from "./hooks/useProject";
+import { EMPTY_PROJECT } from "./types/project";
 import { copyToClipboard } from "./utils/clipboard";
 import { getReferencedDocIds } from "./utils/documents";
 import type { FragmentAttrs } from "./extensions/FragmentMark";
@@ -27,7 +28,7 @@ function AppBody() {
   const [showCitations, setShowCitations] = useState(false);
   const [editorVersion, setEditorVersion] = useState(0);
   const editorRef = useRef<Editor | null>(null);
-  const { project, setTitle, setContentJson, storageError } = useProject();
+  const { project, setTitle, setContentJson, resetProject, storageError } = useProject();
   // Captured on first render; never updated. handleEditorReady re-runs if any
   // of its deps change, and re-running would call setContent again — wiping
   // the selection mid-keystroke. So keep the initial load in a ref.
@@ -55,6 +56,17 @@ function AppBody() {
     const editor = editorRef.current;
     if (editor) await copyToClipboard(editor, documents);
   }, [documents]);
+
+  const handleNew = useCallback(() => {
+    resetProject();
+    const editor = editorRef.current;
+    if (editor) {
+      try {
+        editor.commands.setContent(JSON.parse(EMPTY_PROJECT.contentJson));
+      } catch { /* empty */ }
+    }
+    setShowCitations(false);
+  }, [resetProject]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const referencedDocIds = useMemo(
@@ -94,6 +106,7 @@ function AppBody() {
         showCitations={showCitations}
         onToggleCitations={() => setShowCitations(!showCitations)}
         onCopy={handleCopy}
+        onNew={handleNew}
         onTitleChange={setTitle}
         storageWarning={storageWarning}
       />

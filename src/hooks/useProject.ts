@@ -61,5 +61,17 @@ export function useProject() {
     });
   }, [persist]);
 
-  return { project, setTitle, setContentJson, setCitations, storageError };
+  const resetProject = useCallback(() => {
+    // Flush any pending debounced write so we don't overwrite the reset.
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    try {
+      window.localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(EMPTY_PROJECT));
+      setStorageError(null);
+    } catch (err) {
+      setStorageError(err as Error);
+    }
+    setProject(EMPTY_PROJECT);
+  }, []);
+
+  return { project, setTitle, setContentJson, setCitations, resetProject, storageError };
 }
