@@ -6,13 +6,12 @@ export const FRAGMENT_NODE_NAME = "fragment";
 export const FRAGMENT_MIME_TYPE = "application/x-fragment";
 
 export interface FragmentAttrs {
-  sourceId: number;
+  docId: string;
   sourceTitle: string;
   pageNumber: number;
   originalText: string;
   displayText: string;
   edited: boolean;
-  rowId: number;
 }
 
 declare module "@tiptap/core" {
@@ -32,13 +31,12 @@ export const FragmentNode = Node.create({
 
   addAttributes() {
     return {
-      sourceId: { default: 0 },
+      docId: { default: "" },
       sourceTitle: { default: "" },
       pageNumber: { default: 0 },
       originalText: { default: "" },
       displayText: { default: "" },
       edited: { default: false },
-      rowId: { default: 0 },
     };
   },
 
@@ -62,14 +60,8 @@ export const FragmentNode = Node.create({
     return {
       insertFragment:
         (attrs: FragmentAttrs) =>
-        ({ chain }) => {
-          return chain()
-            .insertContent({
-              type: this.name,
-              attrs,
-            })
-            .run();
-        },
+        ({ chain }) =>
+          chain().insertContent({ type: this.name, attrs }).run(),
       dissolveFragment:
         () =>
         ({ state, dispatch }) => {
@@ -81,7 +73,7 @@ export const FragmentNode = Node.create({
             const tr = state.tr.replaceWith(
               selection.from,
               selection.from + node.nodeSize,
-              state.schema.text(text)
+              state.schema.text(text),
             );
             dispatch(tr);
           }

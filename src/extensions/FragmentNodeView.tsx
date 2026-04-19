@@ -24,7 +24,10 @@ export function FragmentNodeView({ node, updateAttributes, editor }: NodeViewPro
   };
 
   const handleDissolve = () => {
-    const pos = editor.view.posAtDOM(editor.view.dom.querySelector(`[data-fragment-id="${node.attrs.rowId}"]`)!, 0);
+    const selector = `[data-fragment-id="${node.attrs.docId}:${node.attrs.pageNumber}"]`;
+    const target = editor.view.dom.querySelector(selector);
+    if (!target) return;
+    const pos = editor.view.posAtDOM(target, 0);
     editor.chain().focus().setTextSelection(pos).run();
     editor.commands.dissolveFragment();
   };
@@ -42,7 +45,7 @@ export function FragmentNodeView({ node, updateAttributes, editor }: NodeViewPro
     <NodeViewWrapper
       as="span"
       className={`fragment-node ${node.attrs.edited ? "fragment-node--edited" : ""}`}
-      data-fragment-id={node.attrs.rowId}
+      data-fragment-id={`${node.attrs.docId}:${node.attrs.pageNumber}`}
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
     >
