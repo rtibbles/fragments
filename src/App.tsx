@@ -39,17 +39,21 @@ function AppBody() {
   const [editorVersion, setEditorVersion] = useState(0);
   const editorRef = useRef<Editor | null>(null);
   const { project, setTitle, setContentJson, storageError } = useProject();
+  // Captured on first render; never updated. handleEditorReady re-runs if any
+  // of its deps change, and re-running would call setContent again — wiping
+  // the selection mid-keystroke. So keep the initial load in a ref.
+  const initialContentRef = useRef(project.contentJson);
 
   const handleEditorReady = useCallback((editor: Editor) => {
     editorRef.current = editor;
     try {
-      editor.commands.setContent(JSON.parse(project.contentJson));
+      editor.commands.setContent(JSON.parse(initialContentRef.current));
     } catch { /* empty */ }
     editor.on("update", () => {
       setEditorVersion((v) => v + 1);
       setContentJson(JSON.stringify(editor.getJSON()));
     });
-  }, [project.contentJson, setContentJson]);
+  }, [setContentJson]);
 
   const handleInsertFragment = useCallback(
     (attrs: FragmentAttrs & { text: string }) => {
