@@ -101,3 +101,9 @@
   color: var(--accent);
   border-color: var(--accent);
 }
+
+.toolbar__warning {
+  margin-left: 1rem;
+  color: #b33;
+  font-size: 0.85rem;
+}

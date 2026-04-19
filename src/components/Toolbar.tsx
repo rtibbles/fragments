@@ -1,31 +1,22 @@
 import { useState } from "react";
-import type { SaveStatus } from "../hooks/useProject";
 import "./Toolbar.css";
 
 interface ToolbarProps {
   projectName?: string;
-  saveStatus?: SaveStatus;
   showCitations?: boolean;
   onToggleCitations?: () => void;
   onExport?: () => void;
   onTitleChange?: (title: string) => void;
-  onSave?: () => void;
+  storageWarning?: string | null;
 }
 
-const statusLabels: Record<SaveStatus, string> = {
-  saved: "Saved",
-  saving: "Saving...",
-  unsaved: "Unsaved",
-};
-
 export function Toolbar({
-  projectName = "Untitled Poem",
-  saveStatus = "saved",
+  projectName = "Untitled",
   showCitations,
   onToggleCitations,
   onExport,
   onTitleChange,
-  onSave,
+  storageWarning,
 }: ToolbarProps) {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(projectName);
@@ -71,19 +62,13 @@ export function Toolbar({
             {projectName}
           </span>
         )}
-        <span
-          className={`toolbar__save-status toolbar__save-status--${saveStatus}`}
-          data-testid="toolbar-save-status"
-        >
-          {statusLabels[saveStatus]}
-        </span>
+        {storageWarning && (
+          <span className="toolbar__warning" data-testid="toolbar-warning" role="status">
+            {storageWarning}
+          </span>
+        )}
       </div>
       <div className="toolbar__right">
-        {saveStatus === "unsaved" && (
-          <button className="toolbar__btn" onClick={onSave} data-testid="toolbar-save-btn">
-            Save
-          </button>
-        )}
         <button
           className={`toolbar__btn ${showCitations ? "toolbar__btn--active" : ""}`}
           onClick={onToggleCitations}
