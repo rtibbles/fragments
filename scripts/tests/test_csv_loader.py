@@ -41,3 +41,28 @@ def test_parse_sections_single():
 def test_year_coerces_to_int_or_none(fixtures_dir: Path):
     rows = load_rows(fixtures_dir / "sample.csv")
     assert isinstance(rows[0]["year"], int)
+
+def test_parse_sections_skips_non_integer_pieces():
+    assert parse_sections("1;abc;3") == [1, 3]
+
+def test_load_rows_blank_optional_fields_become_none(fixtures_dir: Path):
+    rows = load_rows(fixtures_dir / "sample.csv")
+    # Row 0 (Glissant) has blank subtitle, doi, isbn, journal_or_source, url
+    assert rows[0]["subtitle"] is None
+    assert rows[0]["doi"] is None
+    assert rows[0]["journal_or_source"] is None
+    # Row 1 (Getsy) has a non-blank doi
+    assert rows[1]["doi"] == "10.1080/00043249.2021.1947710"
+
+def test_load_rows_non_numeric_year_becomes_none(tmp_path: Path):
+    csv_path = tmp_path / "nd.csv"
+    csv_path.write_text(
+        "priority,status,category,author,title,subtitle,year,publisher,type,"
+        "editor_translator,journal_or_source,sections_cited,why_cited,"
+        "access_notes,file_location,url,doi,isbn,acquired_date,notes\n"
+        "1,have,x,J Doe,Untitled,,forthcoming,,book,,,,,,,,,,,\n",
+        encoding="utf-8",
+    )
+    rows = load_rows(csv_path)
+    assert len(rows) == 1
+    assert rows[0]["year"] is None

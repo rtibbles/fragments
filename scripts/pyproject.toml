@@ -15,6 +15,3 @@ dev = ["pytest>=8"]
 testpaths = ["tests"]
 addopts = "-q"
 pythonpath = [".."]
-
-[tool.pyright]
-extraPaths = [".."]

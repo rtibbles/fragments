@@ -9,6 +9,10 @@ OPTIONAL_STRING_FIELDS = (
 )
 
 def split_authors(raw: str) -> list[dict]:
+    # Assumes "Given [Middle ...] Family" form, semicolon-separated.
+    # Does NOT handle "Family, Given", suffixes like "Jr.", compound
+    # surnames ("Van den Berg"), or corporate authors — the source CSV
+    # is hand-curated in a consistent form.
     if not raw or not raw.strip():
         return []
     parts = [p.strip() for p in raw.split(";") if p.strip()]
