@@ -7,16 +7,12 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri",
-    "test:build": "tauri build --debug --no-bundle",
-    "test:e2e": "npx wdio run wdio.conf.ts"
+    "test": "vitest",
+    "test:run": "vitest run",
+    "build:corpus": "scripts/build_corpus.py --corpus-root ../mfa_thesis --out public/corpus.json"
   },
   "dependencies": {
     "@floating-ui/dom": "^1.7.6",
-    "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-dialog": "^2.6.0",
-    "@tauri-apps/plugin-fs": "^2.4.5",
-    "@tauri-apps/plugin-opener": "^2",
     "@tiptap/extension-text-align": "^3.20.0",
     "@tiptap/extension-underline": "^3.20.0",
     "@tiptap/extensions": "^3.20.0",
@@ -24,20 +20,21 @@
     "@tiptap/react": "^3.20.0",
     "@tiptap/starter-kit": "^3.20.0",
     "@tiptap/suggestion": "^3.20.0",
+    "minisearch": "^7.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
-    "@wdio/cli": "^9.24.0",
-    "@wdio/local-runner": "^9.24.0",
-    "@wdio/mocha-framework": "^9.24.0",
-    "@wdio/spec-reporter": "^9.24.0",
+    "@vitest/ui": "^4.1.4",
+    "jsdom": "^29.0.2",
     "typescript": "~5.8.3",
     "vite": "^7.0.4",
-    "webdriverio": "^9.24.0"
+    "vitest": "^4.1.4"
   }
 }
