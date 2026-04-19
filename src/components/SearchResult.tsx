@@ -1,4 +1,4 @@
-import { FRAGMENT_MIME_TYPE } from "../extensions/FragmentNode";
+import { FRAGMENT_MIME_TYPE } from "../extensions/FragmentMark";
 import "./SearchPanel.css";
 
 interface SearchResultProps {
@@ -25,8 +25,7 @@ export function SearchResult({
         sourceTitle,
         pageNumber,
         originalText: text,
-        displayText: text,
-        edited: false,
+        text,
       }),
     );
     e.dataTransfer.effectAllowed = "copy";

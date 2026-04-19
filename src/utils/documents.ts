@@ -1,7 +1,7 @@
 import type { Editor } from "@tiptap/react";
 import type { CitationMetadata } from "./chicago";
 import type { CorpusDocument } from "../types/corpus";
-import { FRAGMENT_NODE_NAME } from "../extensions/FragmentNode";
+import { FRAGMENT_MARK_NAME } from "../extensions/FragmentMark";
 
 export type DocumentWithMeta = CorpusDocument;
 
@@ -41,8 +41,10 @@ export function getReferencedDocIds(editor: Editor | null): string[] {
   if (!editor) return [];
   const ids = new Set<string>();
   editor.state.doc.descendants((node) => {
-    if (node.type.name === FRAGMENT_NODE_NAME && node.attrs.docId) {
-      ids.add(node.attrs.docId as string);
+    for (const mark of node.marks) {
+      if (mark.type.name === FRAGMENT_MARK_NAME && mark.attrs.docId) {
+        ids.add(mark.attrs.docId as string);
+      }
     }
   });
   return Array.from(ids);

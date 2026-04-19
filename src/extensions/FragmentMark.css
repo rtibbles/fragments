@@ -1,0 +1,11 @@
+.fragment-mark {
+  background: var(--accent-soft);
+  border-bottom: 2px solid var(--accent);
+  padding: 0 1px;
+  border-radius: 1px;
+  transition: background 0.12s;
+}
+
+.fragment-mark:hover {
+  background: var(--accent-mid);
+}

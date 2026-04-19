@@ -4,8 +4,8 @@ import type { Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 import Underline from "@tiptap/extension-underline";
-import { FragmentNode, FRAGMENT_MIME_TYPE } from "../extensions/FragmentNode";
-import type { FragmentAttrs } from "../extensions/FragmentNode";
+import { FragmentMark, FRAGMENT_MIME_TYPE } from "../extensions/FragmentMark";
+import type { FragmentAttrs } from "../extensions/FragmentMark";
 import { SectionNav } from "./SectionNav";
 import "./EditorPanel.css";
 
@@ -21,7 +21,7 @@ export function EditorPanel({ onEditorReady }: EditorPanelProps) {
       }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Underline,
-      FragmentNode,
+      FragmentMark,
     ],
     content: "",
     editorProps: {
@@ -32,13 +32,17 @@ export function EditorPanel({ onEditorReady }: EditorPanelProps) {
         const data = event.dataTransfer?.getData(FRAGMENT_MIME_TYPE);
         if (!data) return false;
         event.preventDefault();
-        const attrs: FragmentAttrs = JSON.parse(data);
+        const parsed = JSON.parse(data) as FragmentAttrs & { text: string };
         const pos = view.posAtCoords({ left: event.clientX, top: event.clientY });
         if (pos) {
-          const tr = view.state.tr.insert(
-            pos.pos,
-            view.state.schema.nodes.fragment.create(attrs)
-          );
+          const mark = view.state.schema.marks.fragment.create({
+            docId: parsed.docId,
+            sourceTitle: parsed.sourceTitle,
+            pageNumber: parsed.pageNumber,
+            originalText: parsed.originalText,
+          });
+          const textNode = view.state.schema.text(parsed.text, [mark]);
+          const tr = view.state.tr.insert(pos.pos, textNode);
           view.dispatch(tr);
         }
         return true;

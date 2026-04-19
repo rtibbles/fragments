@@ -11,7 +11,7 @@ import { useCorpus } from "./hooks/useCorpus";
 import { useProject } from "./hooks/useProject";
 import { exportRichText } from "./utils/export";
 import { getReferencedDocIds } from "./utils/documents";
-import type { FragmentAttrs } from "./extensions/FragmentNode";
+import type { FragmentAttrs } from "./extensions/FragmentMark";
 import "./App.css";
 
 function App() {
@@ -51,9 +51,12 @@ function AppBody() {
     });
   }, [project.contentJson, setContentJson]);
 
-  const handleInsertFragment = useCallback((attrs: FragmentAttrs) => {
-    editorRef.current?.chain().focus().insertFragment(attrs).run();
-  }, []);
+  const handleInsertFragment = useCallback(
+    (attrs: FragmentAttrs & { text: string }) => {
+      editorRef.current?.chain().focus().insertFragment(attrs).run();
+    },
+    [],
+  );
 
   const handleExport = useCallback(() => {
     const editor = editorRef.current;

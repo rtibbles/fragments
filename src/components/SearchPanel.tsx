@@ -2,13 +2,13 @@ import { useMemo, useState } from "react";
 import { SearchResult } from "./SearchResult";
 import { useCorpusContext } from "../context/CorpusContext";
 import type { SearchHit } from "../types/corpus";
-import type { FragmentAttrs } from "../extensions/FragmentNode";
+import type { FragmentAttrs } from "../extensions/FragmentMark";
 import "./SearchPanel.css";
 
 const SEARCH_LIMIT = 50;
 
 interface SearchPanelProps {
-  onInsertFragment?: (attrs: FragmentAttrs) => void;
+  onInsertFragment?: (attrs: FragmentAttrs & { text: string }) => void;
 }
 
 export function SearchPanel({ onInsertFragment }: SearchPanelProps) {
@@ -56,8 +56,7 @@ export function SearchPanel({ onInsertFragment }: SearchPanelProps) {
       sourceTitle: hit.sourceTitle,
       pageNumber: hit.page,
       originalText: hit.extract,
-      displayText: hit.extract,
-      edited: false,
+      text: hit.extract,
     });
   };
 
