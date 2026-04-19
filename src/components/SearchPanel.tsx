@@ -98,9 +98,9 @@ export function SearchPanel({ onInsertFragment }: SearchPanelProps) {
         {showingNoResults && (
           <p className="search-panel__empty">No results found</p>
         )}
-        {hits.map((hit) => (
+        {hits.map((hit, idx) => (
           <SearchResult
-            key={`${hit.docId}:${hit.page}`}
+            key={`${hit.docId}:${hit.page}:${idx}`}
             text={hit.extract}
             sourceTitle={hit.sourceTitle}
             docId={hit.docId}
