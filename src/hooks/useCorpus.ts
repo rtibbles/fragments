@@ -12,14 +12,16 @@ export type CorpusState =
       miniSearch: MiniSearch<ChunkDoc>;
     };
 
-export interface UseCorpusResult {
-  status: "loading" | "error" | "ready";
-  error?: Error;
-  documents?: CorpusDocument[];
-  byId?: (id: string) => CorpusDocument | undefined;
-  miniSearch?: MiniSearch<ChunkDoc>;
-  retry: () => void;
-}
+export type UseCorpusResult =
+  | { status: "loading"; retry: () => void }
+  | { status: "error"; error: Error; retry: () => void }
+  | {
+      status: "ready";
+      documents: CorpusDocument[];
+      byId: (id: string) => CorpusDocument | undefined;
+      miniSearch: MiniSearch<ChunkDoc>;
+      retry: () => void;
+    };
 
 interface ChunkDoc {
   id: string;
