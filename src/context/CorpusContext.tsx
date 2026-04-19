@@ -1,26 +1,19 @@
 import { createContext, useContext, type ReactNode } from "react";
-import type MiniSearch from "minisearch";
-import type { CorpusDocument } from "../types/corpus";
+import type { UseCorpusResult } from "../hooks/useCorpus";
 
-interface CorpusContextValue {
-  documents: CorpusDocument[];
-  byId: (id: string) => CorpusDocument | undefined;
-  miniSearch: MiniSearch;
-}
-
-const CorpusContext = createContext<CorpusContextValue | null>(null);
+const CorpusContext = createContext<UseCorpusResult | null>(null);
 
 export function CorpusProvider({
   value,
   children,
 }: {
-  value: CorpusContextValue;
+  value: UseCorpusResult;
   children: ReactNode;
 }) {
   return <CorpusContext.Provider value={value}>{children}</CorpusContext.Provider>;
 }
 
-export function useCorpusContext(): CorpusContextValue {
+export function useCorpusContext(): UseCorpusResult {
   const ctx = useContext(CorpusContext);
   if (!ctx) throw new Error("useCorpusContext must be used inside CorpusProvider");
   return ctx;

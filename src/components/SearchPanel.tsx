@@ -20,9 +20,13 @@ interface SearchPanelProps {
 }
 
 export function SearchPanel({ onInsertFragment }: SearchPanelProps) {
-  const { documents, miniSearch, byId } = useCorpusContext();
+  const corpus = useCorpusContext();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string>("all");
+
+  const documents = corpus.status === "ready" ? corpus.documents : [];
+  const miniSearch = corpus.status === "ready" ? corpus.miniSearch : null;
+  const byId = corpus.status === "ready" ? corpus.byId : null;
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -31,6 +35,7 @@ export function SearchPanel({ onInsertFragment }: SearchPanelProps) {
   }, [documents]);
 
   const hits: SearchHit[] = useMemo(() => {
+    if (!miniSearch || !byId) return [];
     const trimmed = query.trim();
     if (!trimmed) return [];
     type StoredResult = {
@@ -68,8 +73,9 @@ export function SearchPanel({ onInsertFragment }: SearchPanelProps) {
     });
   };
 
-  const showingEmpty = !query.trim();
-  const showingNoResults = query.trim() && hits.length === 0;
+  const isReady = corpus.status === "ready";
+  const showingEmpty = isReady && !query.trim();
+  const showingNoResults = isReady && query.trim() && hits.length === 0;
 
   return (
     <div className="search-panel" data-testid="search-panel">
@@ -78,9 +84,12 @@ export function SearchPanel({ onInsertFragment }: SearchPanelProps) {
           className="search-panel__input"
           data-testid="search-input"
           type="text"
-          placeholder="Search fragments..."
+          placeholder={
+            corpus.status === "ready" ? "Search fragments..." : "Loading corpus…"
+          }
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          disabled={!isReady}
         />
         <div className="search-panel__filter">
           <label className="search-panel__filter-label">
@@ -99,6 +108,19 @@ export function SearchPanel({ onInsertFragment }: SearchPanelProps) {
         </div>
       </div>
       <div className="search-panel__results" data-testid="search-results">
+        {corpus.status === "loading" && (
+          <p className="search-panel__empty" data-testid="search-loading">
+            Loading corpus…
+          </p>
+        )}
+        {corpus.status === "error" && (
+          <p className="search-panel__empty" data-testid="search-error">
+            Corpus failed to load.{" "}
+            <button className="search-panel__retry" onClick={corpus.retry}>
+              Retry
+            </button>
+          </p>
+        )}
         {showingEmpty && (
           <p className="search-panel__empty">Search your corpus to find fragments</p>
         )}

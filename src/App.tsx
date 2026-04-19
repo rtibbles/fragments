@@ -4,8 +4,6 @@ import { Toolbar } from "./components/Toolbar";
 import { EditorPanel } from "./components/EditorPanel";
 import { SearchPanel } from "./components/SearchPanel";
 import { CitationsPanel } from "./components/CitationsPanel";
-import { AppLoading } from "./components/AppLoading";
-import { AppError } from "./components/AppError";
 import { CorpusProvider, useCorpusContext } from "./context/CorpusContext";
 import { useCorpus } from "./hooks/useCorpus";
 import { useProject } from "./hooks/useProject";
@@ -16,25 +14,16 @@ import "./App.css";
 
 function App() {
   const corpus = useCorpus();
-
-  if (corpus.status === "loading") return <AppLoading />;
-  if (corpus.status === "error") {
-    return <AppError error={corpus.error} onRetry={corpus.retry} />;
-  }
-
   return (
-    <CorpusProvider value={{
-      documents: corpus.documents,
-      byId: corpus.byId,
-      miniSearch: corpus.miniSearch,
-    }}>
+    <CorpusProvider value={corpus}>
       <AppBody />
     </CorpusProvider>
   );
 }
 
 function AppBody() {
-  const { documents } = useCorpusContext();
+  const corpus = useCorpusContext();
+  const documents = corpus.status === "ready" ? corpus.documents : [];
   const [showCitations, setShowCitations] = useState(false);
   const [editorVersion, setEditorVersion] = useState(0);
   const editorRef = useRef<Editor | null>(null);

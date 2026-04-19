@@ -20,7 +20,33 @@ function renderWithCorpus(documents: CorpusDocument[]) {
   const miniSearch = buildMiniSearch(documents);
   const byIdMap = new Map(documents.map((d) => [d.id, d]));
   return render(
-    <CorpusProvider value={{ documents, miniSearch, byId: (id) => byIdMap.get(id) }}>
+    <CorpusProvider
+      value={{
+        status: "ready",
+        documents,
+        miniSearch,
+        byId: (id) => byIdMap.get(id),
+        retry: () => {},
+      }}
+    >
+      <SearchPanel onInsertFragment={vi.fn()} />
+    </CorpusProvider>,
+  );
+}
+
+function renderLoading() {
+  return render(
+    <CorpusProvider value={{ status: "loading", retry: () => {} }}>
+      <SearchPanel onInsertFragment={vi.fn()} />
+    </CorpusProvider>,
+  );
+}
+
+function renderError(onRetry = () => {}) {
+  return render(
+    <CorpusProvider
+      value={{ status: "error", error: new Error("boom"), retry: onRetry }}
+    >
       <SearchPanel onInsertFragment={vi.fn()} />
     </CorpusProvider>,
   );
@@ -64,5 +90,22 @@ describe("SearchPanel", () => {
       expect(screen.queryByText(/Opacity A/i)).not.toBeInTheDocument();
       expect(screen.getByText(/Queer B/i)).toBeInTheDocument();
     });
+  });
+
+  it("shows a loading indicator and disables the input while corpus is loading", () => {
+    renderLoading();
+    expect(screen.getByTestId("search-loading")).toBeInTheDocument();
+    expect(screen.getByTestId("search-input")).toBeDisabled();
+    expect(
+      (screen.getByTestId("search-input") as HTMLInputElement).placeholder,
+    ).toMatch(/loading/i);
+  });
+
+  it("shows a retry button on corpus fetch error and calls retry on click", () => {
+    const retry = vi.fn();
+    renderError(retry);
+    expect(screen.getByTestId("search-error")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /retry/i }));
+    expect(retry).toHaveBeenCalledTimes(1);
   });
 });

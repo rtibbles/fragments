@@ -116,3 +116,20 @@
   font-weight: 500;
   white-space: nowrap;
 }
+
+.search-panel__retry {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 0 6px;
+  margin-left: 4px;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: inherit;
+  font-family: inherit;
+}
+
+.search-panel__retry:hover {
+  background: var(--hover);
+  color: var(--text-primary);
+}
