@@ -1,41 +1,28 @@
 import type { Editor } from "@tiptap/react";
-import { invoke } from "@tauri-apps/api/core";
 import { formatChicagoBibliography } from "./chicago";
 import {
-  type DocumentWithMeta,
   docToMeta,
   formatCitationHtml,
   sortByAuthorLastName,
   getReferencedDocIds,
 } from "./documents";
+import type { CorpusDocument } from "../types/corpus";
 
-export async function exportRichText(
+export function exportRichText(
   editor: Editor,
-  projectTitle: string
-): Promise<void> {
-  // Get referenced document IDs
+  projectTitle: string,
+  documents: CorpusDocument[],
+): void {
   const docIds = new Set(getReferencedDocIds(editor));
+  const referencedDocs = documents
+    .filter((d) => docIds.has(d.id))
+    .sort(sortByAuthorLastName);
 
-  // Fetch document metadata for bibliography
-  let documents: DocumentWithMeta[] = [];
-  if (docIds.size > 0) {
-    try {
-      const allDocs = await invoke<DocumentWithMeta[]>("list_documents");
-      documents = allDocs
-        .filter((d) => docIds.has(d.id))
-        .sort(sortByAuthorLastName);
-    } catch {
-      // Continue without bibliography
-    }
-  }
-
-  // Get editor HTML — fragments will be rendered as their inline HTML
   const editorHtml = editor.getHTML();
 
-  // Build bibliography section
   let bibliographyHtml = "";
-  if (documents.length > 0) {
-    const entries = documents
+  if (referencedDocs.length > 0) {
+    const entries = referencedDocs
       .map((doc) => {
         const citation = formatChicagoBibliography(docToMeta(doc));
         return `<p style="padding-left:2em;text-indent:-2em;margin-bottom:0.5em;">${formatCitationHtml(citation)}</p>`;
@@ -48,7 +35,6 @@ export async function exportRichText(
 ${entries}`;
   }
 
-  // Build full HTML document
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -82,17 +68,19 @@ ${bibliographyHtml}
 </body>
 </html>`;
 
-  // Save via file dialog
-  const { save } = await import("@tauri-apps/plugin-dialog");
-  const path = await save({
-    filters: [{ name: "HTML", extensions: ["html"] }],
-    defaultPath: `${projectTitle}.html`,
-  });
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `${sanitizeFilename(projectTitle)}.html`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+}
 
-  if (path) {
-    const { writeTextFile } = await import("@tauri-apps/plugin-fs");
-    await writeTextFile(path, html);
-  }
+function sanitizeFilename(name: string): string {
+  return name.replace(/[\\/:*?"<>|]/g, "_").trim() || "Untitled";
 }
 
 function escapeHtml(text: string): string {
