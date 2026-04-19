@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./Toolbar.css";
 
 interface ToolbarProps {
   projectName?: string;
   showCitations?: boolean;
   onToggleCitations?: () => void;
-  onExport?: () => void;
+  onCopy?: () => Promise<void> | void;
   onTitleChange?: (title: string) => void;
   storageWarning?: string | null;
 }
@@ -14,12 +14,19 @@ export function Toolbar({
   projectName = "Untitled",
   showCitations,
   onToggleCitations,
-  onExport,
+  onCopy,
   onTitleChange,
   storageWarning,
 }: ToolbarProps) {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(projectName);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+
+  useEffect(() => {
+    if (copyState === "idle") return;
+    const t = setTimeout(() => setCopyState("idle"), 1500);
+    return () => clearTimeout(t);
+  }, [copyState]);
 
   const handleStartEdit = () => {
     setEditValue(projectName);
@@ -30,6 +37,16 @@ export function Toolbar({
     setEditing(false);
     if (editValue.trim() && editValue !== projectName) {
       onTitleChange?.(editValue.trim());
+    }
+  };
+
+  const handleCopy = async () => {
+    if (!onCopy) return;
+    try {
+      await onCopy();
+      setCopyState("copied");
+    } catch {
+      setCopyState("failed");
     }
   };
 
@@ -76,8 +93,16 @@ export function Toolbar({
         >
           Citations
         </button>
-        <button className="toolbar__btn" onClick={onExport} data-testid="toolbar-export-btn">
-          Export
+        <button
+          className="toolbar__btn"
+          onClick={handleCopy}
+          data-testid="toolbar-copy-btn"
+        >
+          {copyState === "copied"
+            ? "Copied!"
+            : copyState === "failed"
+              ? "Copy failed"
+              : "Copy"}
         </button>
       </div>
     </div>

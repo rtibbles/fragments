@@ -9,7 +9,7 @@ import { AppError } from "./components/AppError";
 import { CorpusProvider, useCorpusContext } from "./context/CorpusContext";
 import { useCorpus } from "./hooks/useCorpus";
 import { useProject } from "./hooks/useProject";
-import { exportRichText } from "./utils/export";
+import { copyToClipboard } from "./utils/clipboard";
 import { getReferencedDocIds } from "./utils/documents";
 import type { FragmentAttrs } from "./extensions/FragmentMark";
 import "./App.css";
@@ -62,10 +62,10 @@ function AppBody() {
     [],
   );
 
-  const handleExport = useCallback(() => {
+  const handleCopy = useCallback(async () => {
     const editor = editorRef.current;
-    if (editor) exportRichText(editor, project.title, documents);
-  }, [project.title, documents]);
+    if (editor) await copyToClipboard(editor, documents);
+  }, [documents]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const referencedDocIds = useMemo(
@@ -104,7 +104,7 @@ function AppBody() {
         projectName={project.title}
         showCitations={showCitations}
         onToggleCitations={() => setShowCitations(!showCitations)}
-        onExport={handleExport}
+        onCopy={handleCopy}
         onTitleChange={setTitle}
         storageWarning={storageWarning}
       />
