@@ -1,0 +1,16 @@
+[project]
+name = "fragments-corpus-builder"
+version = "0.0.0"
+requires-python = ">=3.12"
+dependencies = [
+  "pymupdf>=1.24",
+  "ebooklib>=0.18",
+  "beautifulsoup4>=4.12",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
