@@ -1,64 +1,59 @@
 # Fragments
 
-Fragments is a desktop writing tool for poets and researchers built with Tauri, React, and TypeScript. It provides a rich text editor with corpus search, fragment insertion, inline autocomplete, Chicago-style citations, and project management — all backed by a local SQLite database.
+Fragments is a single-page web app for composing writing against a fixed corpus of references. It is served statically from GitHub Pages; the user's draft lives in the browser's `localStorage`.
 
-## Prerequisites
+Live site: <https://rtibbles.github.io/fragments/>
 
-- [Rust](https://rustup.rs/) (stable toolchain)
-- [Node.js](https://nodejs.org/) (v18+)
-- System dependencies for Tauri on Linux:
-  ```
-  sudo dnf install webkit2gtk4.1-devel gtk3-devel libappindicator-gtk3-devel librsvg2-devel pango-devel
-  ```
-  See the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) for other platforms.
+## Development
 
-## Getting Started
-
-```bash
+```
 npm install
-npm run tauri dev
+npm run dev
 ```
 
-## Building
+Runs on `http://localhost:5173/fragments/`. The dev server reads `public/corpus.json`; if it's missing, the app will show an error state — generate it first with `npm run build:corpus` (see below).
 
-```bash
-npm run tauri build
+## Building the corpus
+
+The corpus is derived from the sibling [`mfa_thesis`](../mfa_thesis) repo's `references_todo.csv`. Rows with `status == "have"` are included; rows pointing at missing files are skipped with a warning.
+
+```
+npm run build:corpus            # defaults to ../mfa_thesis
+# or
+scripts/build_corpus.py --corpus-root /path/to/mfa_thesis --out public/corpus.json
 ```
 
-This produces platform-specific packages in `src-tauri/target/release/bundle/` (e.g. `.deb`, `.AppImage`, `.rpm` on Linux, `.dmg` on macOS, `.msi` on Windows). The raw binary is at `src-tauri/target/release/fragments`.
+The script uses a `uv` shebang (PEP 723 inline deps: `pymupdf`, `ebooklib`, `beautifulsoup4`). Install [uv](https://docs.astral.sh/uv/) once; no `requirements.txt` is needed.
 
-To run the built app directly:
-
-```bash
-./src-tauri/target/release/fragments
-```
+Commit the resulting `public/corpus.json` when you want the deployed site to reflect new corpus content.
 
 ## Testing
 
-**Backend (Rust unit tests):**
-
-```bash
-cd src-tauri && cargo test
+```
+npm run test               # vitest in watch mode
+npm run test:run           # vitest once
+cd scripts && uv run --project . pytest   # python build-script tests
 ```
 
-**E2E (WebdriverIO + tauri-driver):**
+## Deployment
 
-Requires `tauri-driver` (`cargo install tauri-driver --locked`) and `WebKitWebDriver` (system package).
+Pushes to `main` run `.github/workflows/pages.yml`, which runs Vitest, builds `dist/`, and deploys to GitHub Pages. Enable Pages under Settings → Pages → Source = "GitHub Actions" (one-time).
 
-```bash
-npm run test:build   # Build debug binary
-npm run test:e2e     # Run E2E tests
-```
-
-## Project Structure
+## Project structure
 
 ```
-src/                  React frontend
-  components/         UI components (Toolbar, EditorPanel, SearchPanel, etc.)
-  extensions/         TipTap editor extensions (FragmentNode, autocomplete)
-  hooks/              React hooks (useProject, etc.)
-  utils/              Utilities (Chicago citation formatter, export)
-src-tauri/            Rust backend
-  src/                Tauri commands, SQLite database, search engine
-e2e/                  WebdriverIO E2E test specs
+public/
+  corpus.json              Built artifact (committed)
+scripts/
+  build_corpus.py          Entry — uv shebang
+  corpus_builder/          Extraction package
+src/
+  App.tsx                  Corpus-loading gate + editor layout
+  context/CorpusContext    Provider for indexed corpus
+  hooks/
+    useCorpus              Fetches corpus.json, builds MiniSearch
+    useProject             localStorage-backed project state
+  components/              Toolbar, SearchPanel, CitationsPanel, etc.
+  extensions/              TipTap fragment node
+  utils/                   Chicago citation, search snippet, export
 ```
