@@ -22,3 +22,11 @@
 .fragment-footnote:hover {
   text-decoration: underline;
 }
+
+.fragment-ellipsis {
+  color: var(--text-tertiary);
+  opacity: 0.75;
+  margin: 0 1px;
+  user-select: none;
+  pointer-events: none;
+}

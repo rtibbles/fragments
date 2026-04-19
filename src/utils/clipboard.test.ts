@@ -158,6 +158,38 @@ describe("copyToClipboard", () => {
     expect(bibMatches.length).toBe(1);
   });
 
+  it("injects a unicode ellipsis when a fragment had its middle deleted", async () => {
+    const editor = fakeEditor(
+      // current text "The quick fox"; original had "brown" in the middle
+      '<p><span data-doc-id="a" data-original-text="The quick brown fox" data-type="fragment">The quick fox</span></p>',
+      [
+        {
+          type: "paragraph",
+          runs: [{ text: "The quick fox", fragment: { docId: "a" } }],
+        },
+      ],
+    );
+    const docs = [makeDoc({ id: "a", title: "Doc A" })];
+    await copyToClipboard(editor, docs);
+    expect(writtenHtml).toContain("The quick \u2026 fox");
+  });
+
+  it("does NOT inject an ellipsis when deletion reaches the fragment edge", async () => {
+    const editor = fakeEditor(
+      // user trimmed the leading "The ": edge deletion, no ellipsis
+      '<p><span data-doc-id="a" data-original-text="The quick fox" data-type="fragment">quick fox</span></p>',
+      [
+        {
+          type: "paragraph",
+          runs: [{ text: "quick fox", fragment: { docId: "a" } }],
+        },
+      ],
+    );
+    const docs = [makeDoc({ id: "a", title: "Doc A" })];
+    await copyToClipboard(editor, docs);
+    expect(writtenHtml).not.toContain("\u2026");
+  });
+
   it("plain-text form has [N] markers and a numbered bibliography", async () => {
     const editor = fakeEditor(
       '<p><span data-doc-id="a" data-type="fragment">needle</span> elsewhere</p>',

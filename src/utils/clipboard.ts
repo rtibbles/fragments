@@ -5,6 +5,7 @@ import {
   formatCitationHtml,
   getReferencedDocIds,
 } from "./documents";
+import { computeEllipsisOffsets } from "../extensions/FragmentMark";
 import type { CorpusDocument } from "../types/corpus";
 
 /**
@@ -87,6 +88,26 @@ function injectFootnotes(html: string, numberByDocId: Map<string, number>): stri
   for (const mark of tpl.content.querySelectorAll<HTMLElement>(
     'span[data-type="fragment"]',
   )) {
+    // Middle-deletion ellipses — splice a "…" back in at each gap, with
+    // whitespace normalized to " … " so the pasted output reads naturally.
+    const original = mark.getAttribute("data-original-text") ?? "";
+    const current = mark.textContent ?? "";
+    const offsets = computeEllipsisOffsets(original, current);
+    if (offsets.length > 0) {
+      const parts: string[] = [];
+      let last = 0;
+      for (const off of offsets) {
+        parts.push(current.slice(last, off).replace(/\s+$/, ""));
+        last = off;
+      }
+      parts.push(current.slice(last).replace(/^\s+/, ""));
+      // Re-strip any leading whitespace on the tail segments (we already
+      // trimmed each middle boundary).
+      mark.textContent = parts
+        .map((p, idx) => (idx > 0 ? p.replace(/^\s+/, "") : p))
+        .join(" \u2026 ");
+    }
+
     const docId = mark.getAttribute("data-doc-id") ?? "";
     const n = numberByDocId.get(docId);
     if (n == null) continue;
