@@ -39,11 +39,15 @@ def main() -> int:
 
     rows = load_rows(csv_path)
     docs = []
-    skipped = []
+    skipped: list[tuple[str, str]] = []
     for row in rows:
-        doc = build_document(row, corpus_root=args.corpus_root)
+        try:
+            doc = build_document(row, corpus_root=args.corpus_root)
+        except Exception as err:
+            skipped.append((row["file_location"], f"{type(err).__name__}: {err}"))
+            continue
         if doc is None:
-            skipped.append(row["file_location"])
+            skipped.append((row["file_location"], "missing or empty"))
             continue
         docs.append(doc)
 
@@ -59,9 +63,9 @@ def main() -> int:
 
     print(f"wrote {len(docs)} documents to {args.out}")
     if skipped:
-        print(f"skipped {len(skipped)} rows (missing/unreadable):", file=sys.stderr)
-        for s in skipped:
-            print(f"  - {s}", file=sys.stderr)
+        print(f"skipped {len(skipped)} rows:", file=sys.stderr)
+        for path, reason in skipped:
+            print(f"  - {path}  ({reason})", file=sys.stderr)
     return 0
 
 
