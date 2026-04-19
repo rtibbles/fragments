@@ -26,29 +26,30 @@ export function SearchPanel({ onInsertFragment }: SearchPanelProps) {
   const hits: SearchHit[] = useMemo(() => {
     const trimmed = query.trim();
     if (!trimmed) return [];
-    const raw = miniSearch.search(trimmed);
+    type StoredResult = {
+      score: number;
+      docId: string;
+      page: number;
+      text: string;
+      match: Record<string, unknown>;
+    };
+    const raw = miniSearch.search(trimmed) as unknown as StoredResult[];
     const withDoc = raw
-      .map((r) => ({
-        r,
-        doc: byId((r as { docId: string }).docId),
-      }))
-      .filter((x) => x.doc !== undefined) as { r: typeof raw[number]; doc: NonNullable<ReturnType<typeof byId>> }[];
+      .map((r) => ({ r, doc: byId(r.docId) }))
+      .filter((x): x is { r: StoredResult; doc: NonNullable<ReturnType<typeof byId>> } =>
+        x.doc !== undefined,
+      );
     const filtered = category === "all"
       ? withDoc
       : withDoc.filter((x) => x.doc.category === category);
-    return filtered.slice(0, SEARCH_LIMIT).map(({ r, doc }) => {
-      const page = (r as { page: number }).page;
-      const text = (r as { text: string }).text;
-      const matchTerms = Object.keys((r as { match: Record<string, unknown> }).match ?? {});
-      return {
-        docId: doc.id,
-        page,
-        text,
-        extract: carveSnippet(text, matchTerms),
-        score: r.score,
-        sourceTitle: doc.title,
-      };
-    });
+    return filtered.slice(0, SEARCH_LIMIT).map(({ r, doc }) => ({
+      docId: doc.id,
+      page: r.page,
+      text: r.text,
+      extract: carveSnippet(r.text, Object.keys(r.match ?? {})),
+      score: r.score,
+      sourceTitle: doc.title,
+    }));
   }, [query, category, miniSearch, byId]);
 
   const handleInsert = (hit: SearchHit) => {
