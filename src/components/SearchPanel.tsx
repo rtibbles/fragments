@@ -1,70 +1,69 @@
-import { useState, useCallback, useRef, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { useMemo, useState } from "react";
 import { SearchResult } from "./SearchResult";
-import type { SearchResultData } from "../types/search";
+import { useCorpusContext } from "../context/CorpusContext";
+import { carveSnippet } from "../utils/search";
+import type { SearchHit } from "../types/corpus";
+import type { FragmentAttrs } from "../extensions/FragmentNode";
 import "./SearchPanel.css";
 
+const SEARCH_LIMIT = 50;
+
 interface SearchPanelProps {
-  onInsertFragment?: (attrs: {
-    sourceId: number;
-    sourceTitle: string;
-    pageNumber: number;
-    originalText: string;
-    displayText: string;
-    edited: boolean;
-    rowId: number;
-  }) => void;
+  onInsertFragment?: (attrs: FragmentAttrs) => void;
 }
 
 export function SearchPanel({ onInsertFragment }: SearchPanelProps) {
+  const { documents, miniSearch, byId } = useCorpusContext();
   const [query, setQuery] = useState("");
-  const [highlightsOnly, setHighlightsOnly] = useState(false);
-  const [results, setResults] = useState<SearchResultData[]>([]);
-  const [loading, setLoading] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const [category, setCategory] = useState<string>("all");
 
-  const doSearch = useCallback(
-    async (q: string, hlOnly: boolean) => {
-      if (!q.trim()) {
-        setResults([]);
-        return;
-      }
-      setLoading(true);
-      try {
-        const res = await invoke<SearchResultData[]>("search_corpus", {
-          query: q,
-          highlightsOnly: hlOnly,
-          limit: 50,
-        });
-        setResults(res);
-      } catch {
-        setResults([]);
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    for (const d of documents) if (d.category) set.add(d.category);
+    return Array.from(set).sort();
+  }, [documents]);
 
-  useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => doSearch(query, highlightsOnly), 300);
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [query, highlightsOnly, doSearch]);
+  const hits: SearchHit[] = useMemo(() => {
+    const trimmed = query.trim();
+    if (!trimmed) return [];
+    const raw = miniSearch.search(trimmed);
+    const withDoc = raw
+      .map((r) => ({
+        r,
+        doc: byId((r as { docId: string }).docId),
+      }))
+      .filter((x) => x.doc !== undefined) as { r: typeof raw[number]; doc: NonNullable<ReturnType<typeof byId>> }[];
+    const filtered = category === "all"
+      ? withDoc
+      : withDoc.filter((x) => x.doc.category === category);
+    return filtered.slice(0, SEARCH_LIMIT).map(({ r, doc }) => {
+      const page = (r as { page: number }).page;
+      const text = (r as { text: string }).text;
+      const matchTerms = Object.keys((r as { match: Record<string, unknown> }).match ?? {});
+      return {
+        docId: doc.id,
+        page,
+        text,
+        extract: carveSnippet(text, matchTerms),
+        score: r.score,
+        sourceTitle: doc.title,
+      };
+    });
+  }, [query, category, miniSearch, byId]);
 
-  const handleInsert = (result: SearchResultData) => {
+  const handleInsert = (hit: SearchHit) => {
     onInsertFragment?.({
-      sourceId: result.source_id,
-      sourceTitle: result.source_title,
-      pageNumber: result.page_number,
-      originalText: result.extract,
-      displayText: result.extract,
+      docId: hit.docId,
+      sourceTitle: hit.sourceTitle,
+      pageNumber: hit.page,
+      originalText: hit.extract,
+      displayText: hit.extract,
       edited: false,
-      rowId: result.row_id,
     });
   };
+
+  const showingEmpty = !query.trim();
+  const showingNoResults = query.trim() && hits.length === 0;
 
   return (
     <div className="search-panel" data-testid="search-panel">
@@ -79,37 +78,36 @@ export function SearchPanel({ onInsertFragment }: SearchPanelProps) {
         />
         <div className="search-panel__filter">
           <label className="search-panel__filter-label">
-            <input
-              type="checkbox"
-              checked={highlightsOnly}
-              onChange={(e) => setHighlightsOnly(e.target.checked)}
-              data-testid="search-highlights-checkbox"
-            />
-            Highlights only
+            Category
+            <select
+              data-testid="search-category-select"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              <option value="all">All</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
           </label>
         </div>
       </div>
       <div className="search-panel__results" data-testid="search-results">
-        {loading && <p className="search-panel__status">Searching...</p>}
-        {!loading && results.length === 0 && query.trim() && (
+        {showingEmpty && (
+          <p className="search-panel__empty">Search your corpus to find fragments</p>
+        )}
+        {showingNoResults && (
           <p className="search-panel__empty">No results found</p>
         )}
-        {!loading && results.length === 0 && !query.trim() && (
-          <p className="search-panel__empty">
-            Search your corpus to find fragments
-          </p>
-        )}
-        {results.map((result) => (
+        {hits.map((hit) => (
           <SearchResult
-            key={`${result.row_id}-${result.is_highlight}`}
-            text={result.extract}
-            sourceTitle={result.source_title}
-            sourceId={result.source_id}
-            pageNumber={result.page_number}
-            isHighlight={result.is_highlight}
-            rowId={result.row_id}
-            score={result.score}
-            onInsert={() => handleInsert(result)}
+            key={`${hit.docId}:${hit.page}`}
+            text={hit.extract}
+            sourceTitle={hit.sourceTitle}
+            docId={hit.docId}
+            pageNumber={hit.page}
+            score={hit.score}
+            onInsert={() => handleInsert(hit)}
           />
         ))}
       </div>
