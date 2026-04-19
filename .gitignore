@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Python build script artifacts
+__pycache__/
+.pytest_cache/
+scripts/.venv/
+scripts/uv.lock
