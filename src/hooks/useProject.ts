@@ -1,120 +1,65 @@
-import type React from "react";
-import { useState, useCallback, useRef, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
-import type { Editor } from "@tiptap/react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { EMPTY_PROJECT, type ProjectState } from "../types/project";
+import type { Citation } from "../types/citation";
 
-export type SaveStatus = "saved" | "saving" | "unsaved";
+export const PROJECT_STORAGE_KEY = "fragments:project";
+const DEBOUNCE_MS = 500;
 
-export interface ProjectState {
-  id: number | null;
-  title: string;
-  saveStatus: SaveStatus;
+function readFromStorage(): { state: ProjectState; error: Error | null } {
+  try {
+    const raw = window.localStorage.getItem(PROJECT_STORAGE_KEY);
+    if (!raw) return { state: EMPTY_PROJECT, error: null };
+    const parsed = JSON.parse(raw) as ProjectState;
+    return { state: parsed, error: null };
+  } catch (err) {
+    return { state: EMPTY_PROJECT, error: err as Error };
+  }
 }
 
-export function useProject(editorRef: React.RefObject<Editor | null>) {
-  const [project, setProject] = useState<ProjectState>({
-    id: null,
-    title: "Untitled Poem",
-    saveStatus: "saved",
-  });
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+export function useProject() {
+  const [project, setProject] = useState<ProjectState>(() => readFromStorage().state);
+  const [storageError, setStorageError] = useState<Error | null>(() => readFromStorage().error);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const save = useCallback(async () => {
-    const ed = editorRef.current;
-    if (!ed) return;
-
-    const contentJson = JSON.stringify(ed.getJSON());
-
-    setProject((prev) => ({ ...prev, saveStatus: "saving" }));
-    try {
-      const id = await invoke<number>("save_project", {
-        id: project.id,
-        title: project.title,
-        contentJson,
-      });
-      setProject((prev) => ({ ...prev, id, saveStatus: "saved" }));
-    } catch (err) {
-      console.error("Save failed:", err);
-      setProject((prev) => ({ ...prev, saveStatus: "unsaved" }));
-    }
-  }, [project.id, project.title]);
-
-  const markUnsaved = useCallback(() => {
-    setProject((prev) => {
-      if (prev.saveStatus === "saved") {
-        return { ...prev, saveStatus: "unsaved" };
+  const persist = useCallback((next: ProjectState) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      try {
+        window.localStorage.setItem(PROJECT_STORAGE_KEY, JSON.stringify(next));
+        setStorageError(null);
+      } catch (err) {
+        setStorageError(err as Error);
       }
-      return prev;
-    });
+    }, DEBOUNCE_MS);
   }, []);
 
-  // Debounced auto-save on content changes
-  useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor) return;
-    const handler = () => {
-      markUnsaved();
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(() => {
-        save();
-      }, 5000);
-    };
-    editor.on("update", handler);
-    return () => {
-      editor.off("update", handler);
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [editorRef, save, markUnsaved]);
-
-  const loadProject = useCallback(
-    (id: number, title: string, contentJson: string) => {
-      setProject({
-        id,
-        title,
-        saveStatus: "saved",
-      });
-      const editor = editorRef.current;
-      if (editor) {
-        try {
-          const content = JSON.parse(contentJson);
-          editor.commands.setContent(content);
-        } catch {
-          editor.commands.setContent("");
-        }
-      }
-    },
-    [editorRef]
-  );
-
-  const createProject = useCallback(
-    async (title: string) => {
-      const editor = editorRef.current;
-      const contentJson = editor
-        ? JSON.stringify(editor.getJSON())
-        : JSON.stringify({ type: "doc", content: [] });
-      try {
-        const id = await invoke<number>("save_project", {
-          id: null,
-          title,
-          contentJson,
-        });
-        setProject({ id, title, saveStatus: "saved" });
-      } catch (err) {
-        console.error("Create failed:", err);
-      }
-    },
-    [editorRef]
-  );
+  useEffect(() => () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+  }, []);
 
   const setTitle = useCallback((title: string) => {
-    setProject((prev) => ({ ...prev, title, saveStatus: "unsaved" }));
-  }, []);
+    setProject((prev) => {
+      const next = { ...prev, title };
+      persist(next);
+      return next;
+    });
+  }, [persist]);
 
-  return {
-    project,
-    save,
-    loadProject,
-    createProject,
-    setTitle,
-  };
+  const setContentJson = useCallback((contentJson: string) => {
+    setProject((prev) => {
+      const next = { ...prev, contentJson };
+      persist(next);
+      return next;
+    });
+  }, [persist]);
+
+  const setCitations = useCallback((citations: Citation[]) => {
+    setProject((prev) => {
+      const next = { ...prev, citations };
+      persist(next);
+      return next;
+    });
+  }, [persist]);
+
+  return { project, setTitle, setContentJson, setCitations, storageError };
 }
