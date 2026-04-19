@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Editor } from "@tiptap/react";
 import { Toolbar } from "./components/Toolbar";
 import { EditorPanel } from "./components/EditorPanel";
@@ -72,6 +72,27 @@ function AppBody() {
     () => getReferencedDocIds(editorRef.current),
     [editorVersion],
   );
+
+  // Clicking a superscript footnote opens the citations panel, scrolls to
+  // the matching entry, and flashes it.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ docId: string }>).detail;
+      setShowCitations(true);
+      // Wait a tick for the panel to mount before scrolling.
+      requestAnimationFrame(() => {
+        const target = document.getElementById(`citation-${detail.docId}`);
+        if (!target) return;
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        target.classList.add("citations-panel__entry--flash");
+        window.setTimeout(() => {
+          target.classList.remove("citations-panel__entry--flash");
+        }, 1200);
+      });
+    };
+    document.addEventListener("fragment-footnote-click", handler);
+    return () => document.removeEventListener("fragment-footnote-click", handler);
+  }, []);
 
   const storageWarning = storageError
     ? "Saving disabled — storage unavailable."

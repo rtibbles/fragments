@@ -1,15 +1,12 @@
 import { formatChicagoBibliography } from "../utils/chicago";
-import {
-  docToMeta,
-  formatCitationHtml,
-  sortByAuthorLastName,
-} from "../utils/documents";
+import { docToMeta, formatCitationHtml } from "../utils/documents";
 import { useCorpusContext } from "../context/CorpusContext";
 import "./CitationsPanel.css";
 
 interface CitationsPanelProps {
   visible: boolean;
   onClose: () => void;
+  /** docIds in order of first appearance in the document. */
   referencedDocIds: string[];
 }
 
@@ -18,14 +15,16 @@ export function CitationsPanel({
   onClose,
   referencedDocIds,
 }: CitationsPanelProps) {
-  const { documents } = useCorpusContext();
+  const { byId } = useCorpusContext();
 
   if (!visible) return null;
 
-  const refSet = new Set(referencedDocIds);
-  const referencedDocs = documents
-    .filter((d) => refSet.has(d.id))
-    .sort(sortByAuthorLastName);
+  const entries = referencedDocIds
+    .map((id, idx) => {
+      const doc = byId(id);
+      return doc ? { doc, number: idx + 1 } : null;
+    })
+    .filter((x): x is { doc: NonNullable<ReturnType<typeof byId>>; number: number } => x !== null);
 
   return (
     <div className="citations-panel" data-testid="citations-panel">
@@ -36,15 +35,20 @@ export function CitationsPanel({
         </button>
       </div>
       <div className="citations-panel__body">
-        {referencedDocs.length === 0 && (
+        {entries.length === 0 && (
           <p className="citations-panel__empty">
             Insert fragments to generate citations
           </p>
         )}
-        {referencedDocs.map((doc) => {
+        {entries.map(({ doc, number }) => {
           const citation = formatChicagoBibliography(docToMeta(doc));
           return (
-            <div key={doc.id} className="citations-panel__entry">
+            <div
+              key={doc.id}
+              id={`citation-${doc.id}`}
+              className="citations-panel__entry"
+            >
+              <span className="citations-panel__number">{number}.</span>
               <span
                 className="citations-panel__text"
                 dangerouslySetInnerHTML={{ __html: formatCitationHtml(citation) }}

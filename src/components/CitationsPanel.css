@@ -54,12 +54,24 @@
 
 .citations-panel__entry {
   padding: 6px 0;
-  padding-left: 2em;
-  text-indent: -2em;
   font-size: 13px;
   line-height: 1.5;
   border-bottom: 1px solid var(--border-light);
   color: var(--text-secondary);
+  display: flex;
+  gap: 0.5em;
+  transition: background 0.3s;
+}
+
+.citations-panel__entry--flash {
+  background: var(--accent-soft);
+}
+
+.citations-panel__number {
+  flex-shrink: 0;
+  font-weight: 600;
+  color: var(--accent);
+  min-width: 1.5em;
 }
 
 .citations-panel__text em {

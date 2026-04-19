@@ -9,3 +9,16 @@
 .fragment-mark:hover {
   background: var(--accent-mid);
 }
+
+.fragment-footnote {
+  color: var(--accent);
+  font-family: var(--font-ui);
+  font-size: 0.7em;
+  margin-left: 1px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.fragment-footnote:hover {
+  text-decoration: underline;
+}

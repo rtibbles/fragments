@@ -7,6 +7,14 @@ import "./SearchPanel.css";
 
 const SEARCH_LIMIT = 50;
 
+function formatCategoryLabel(raw: string): string {
+  return raw
+    .split("_")
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 interface SearchPanelProps {
   onInsertFragment?: (attrs: FragmentAttrs & { text: string }) => void;
 }
@@ -84,7 +92,7 @@ export function SearchPanel({ onInsertFragment }: SearchPanelProps) {
             >
               <option value="all">All</option>
               {categories.map((c) => (
-                <option key={c} value={c}>{c}</option>
+                <option key={c} value={c}>{formatCategoryLabel(c)}</option>
               ))}
             </select>
           </label>
