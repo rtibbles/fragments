@@ -33,7 +33,16 @@ export function FragmentNodeView({ node, updateAttributes, editor }: NodeViewPro
     setIsEditing(false);
   };
 
-  const handleDissolve = () => {
+  const startEditing = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditText(displayText);
+    setIsEditing(true);
+  };
+
+  const handleDissolve = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     const selector = `[data-fragment-id="${node.attrs.docId}:${node.attrs.pageNumber}"]`;
     const target = editor.view.dom.querySelector(selector);
     if (!target) return;
@@ -43,6 +52,10 @@ export function FragmentNodeView({ node, updateAttributes, editor }: NodeViewPro
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // ProseMirror registers keydown handlers at the editor level — stop the
+    // event from bubbling up or it'll treat Backspace/ArrowLeft etc. as
+    // document-level commands on the atom node.
+    e.stopPropagation();
     if (e.key === "Enter") {
       e.preventDefault();
       commit();
@@ -52,11 +65,16 @@ export function FragmentNodeView({ node, updateAttributes, editor }: NodeViewPro
     }
   };
 
+  const stopProseMirror = (e: React.SyntheticEvent) => {
+    e.stopPropagation();
+  };
+
   return (
     <NodeViewWrapper
       as="span"
       className={`fragment-node ${node.attrs.edited ? "fragment-node--edited" : ""}`}
       data-fragment-id={`${node.attrs.docId}:${node.attrs.pageNumber}`}
+      contentEditable={false}
     >
       <span className="fragment-node__inner">
         {isEditing ? (
@@ -67,14 +85,14 @@ export function FragmentNodeView({ node, updateAttributes, editor }: NodeViewPro
             onChange={(e) => setEditText(e.target.value)}
             onBlur={commit}
             onKeyDown={handleKeyDown}
+            onMouseDown={stopProseMirror}
+            onClick={stopProseMirror}
+            style={{ width: `${Math.max(editText.length, 8)}ch` }}
           />
         ) : (
           <span
             className="fragment-node__text"
-            onClick={() => {
-              setEditText(displayText);
-              setIsEditing(true);
-            }}
+            onMouseDown={startEditing}
             title="Click to edit"
           >
             {displayText}
@@ -82,7 +100,7 @@ export function FragmentNodeView({ node, updateAttributes, editor }: NodeViewPro
         )}
         <button
           className="fragment-node__btn fragment-node__btn--dissolve"
-          onClick={handleDissolve}
+          onMouseDown={handleDissolve}
           title="Dissolve to plain text"
           aria-label="Dissolve fragment"
         >
