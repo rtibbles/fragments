@@ -41,3 +41,26 @@ describe("snapToPunctuation", () => {
     expect(snapToPunctuation(full, "target").trim()).toBe(snapToPunctuation(full, "target"));
   });
 });
+
+import { carveSnippet } from "./search";
+
+describe("carveSnippet", () => {
+  it("centers a window around the first match position", () => {
+    const text = "The quick brown fox jumps over the lazy dog and then some.";
+    const snippet = carveSnippet(text, ["fox"]);
+    expect(snippet.includes("fox")).toBe(true);
+  });
+
+  it("returns snapped result (ends at punctuation when close)", () => {
+    const text = "Preamble. This sentence has the needle inside it. Epilogue.";
+    const snippet = carveSnippet(text, ["needle"]);
+    expect(snippet.endsWith(".")).toBe(true);
+  });
+
+  it("falls back to first 150 chars when no matches provided", () => {
+    const text = "a".repeat(300);
+    const snippet = carveSnippet(text, []);
+    expect(snippet.length).toBeLessThanOrEqual(250);
+    expect(snippet.length).toBeGreaterThan(0);
+  });
+});

@@ -67,3 +67,39 @@ export function snapToPunctuation(fullText: string, extract: string): string {
 
   return chars.slice(start, end).join("").trim();
 }
+
+const SNIPPET_WINDOW = 150;
+
+/**
+ * Carve a ~150-char window around the first occurrence of any match term
+ * in `text`, then snap it to sentence/quote boundaries.
+ */
+export function carveSnippet(text: string, matchTerms: string[]): string {
+  if (matchTerms.length === 0) {
+    const head = text.slice(0, SNIPPET_WINDOW);
+    return snapToPunctuation(text, head);
+  }
+
+  const lower = text.toLowerCase();
+  let firstIdx = -1;
+  let firstLen = 0;
+  for (const term of matchTerms) {
+    const t = term.toLowerCase();
+    const idx = lower.indexOf(t);
+    if (idx !== -1 && (firstIdx === -1 || idx < firstIdx)) {
+      firstIdx = idx;
+      firstLen = t.length;
+    }
+  }
+
+  if (firstIdx === -1) {
+    const head = text.slice(0, SNIPPET_WINDOW);
+    return snapToPunctuation(text, head);
+  }
+
+  const half = Math.floor(SNIPPET_WINDOW / 2);
+  const start = Math.max(0, firstIdx - half);
+  const end = Math.min(text.length, firstIdx + firstLen + half);
+  const window = text.slice(start, end);
+  return snapToPunctuation(text, window);
+}
