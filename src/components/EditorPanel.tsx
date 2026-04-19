@@ -1,13 +1,29 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useEditor, useEditorState, EditorContent } from "@tiptap/react";
 import type { Editor } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
+import { getMarkRange } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 import Underline from "@tiptap/extension-underline";
-import { FragmentMark, FRAGMENT_MIME_TYPE } from "../extensions/FragmentMark";
+import {
+  FragmentMark,
+  FRAGMENT_MARK_NAME,
+  FRAGMENT_MIME_TYPE,
+} from "../extensions/FragmentMark";
 import type { FragmentAttrs } from "../extensions/FragmentMark";
 import { SectionNav } from "./SectionNav";
+import { FragmentExpandModal, type ExpandResult } from "./FragmentExpandModal";
 import "./EditorPanel.css";
+
+interface ExpandTarget {
+  from: number;
+  to: number;
+  docId: string;
+  sourceTitle: string;
+  pageNumber: number;
+  originalText: string;
+}
 
 interface EditorPanelProps {
   onEditorReady?: (editor: Editor) => void;
@@ -80,6 +96,48 @@ export function EditorPanel({ onEditorReady }: EditorPanelProps) {
       onEditorReady(editor);
     }
   }, [editor, onEditorReady]);
+
+  const [expandTarget, setExpandTarget] = useState<ExpandTarget | null>(null);
+
+  const handleExpandClick = () => {
+    if (!editor) return;
+    const { $from } = editor.state.selection;
+    const markType = editor.schema.marks[FRAGMENT_MARK_NAME];
+    const range = getMarkRange($from, markType);
+    if (!range) return;
+    const nodeAfter = editor.state.doc.resolve(range.from).nodeAfter;
+    const mark = nodeAfter?.marks.find((m) => m.type.name === FRAGMENT_MARK_NAME);
+    if (!mark) return;
+    setExpandTarget({
+      from: range.from,
+      to: range.to,
+      docId: mark.attrs.docId as string,
+      sourceTitle: mark.attrs.sourceTitle as string,
+      pageNumber: mark.attrs.pageNumber as number,
+      originalText: mark.attrs.originalText as string,
+    });
+  };
+
+  const handleApply = (result: ExpandResult) => {
+    if (!editor || !expandTarget) return;
+    const attrs: FragmentAttrs = {
+      docId: expandTarget.docId,
+      sourceTitle: expandTarget.sourceTitle,
+      pageNumber: result.pageNumber,
+      originalText: result.text,
+    };
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from: expandTarget.from, to: expandTarget.to })
+      .insertContent({
+        type: "text",
+        text: result.text,
+        marks: [{ type: FRAGMENT_MARK_NAME, attrs }],
+      })
+      .run();
+    setExpandTarget(null);
+  };
 
   if (!editor || !activeStates) return null;
 
@@ -173,6 +231,29 @@ export function EditorPanel({ onEditorReady }: EditorPanelProps) {
           <EditorContent editor={editor} />
         </div>
       </div>
+      <BubbleMenu
+        editor={editor}
+        shouldShow={({ editor: e }) => e.isActive(FRAGMENT_MARK_NAME)}
+      >
+        <button
+          className="editor-btn editor-btn--bubble"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={handleExpandClick}
+          data-testid="editor-btn-expand"
+          title="Expand quote in context"
+        >
+          Expand quote
+        </button>
+      </BubbleMenu>
+      {expandTarget && (
+        <FragmentExpandModal
+          docId={expandTarget.docId}
+          pageNumber={expandTarget.pageNumber}
+          originalText={expandTarget.originalText}
+          onApply={handleApply}
+          onCancel={() => setExpandTarget(null)}
+        />
+      )}
     </div>
   );
 }

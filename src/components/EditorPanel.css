@@ -46,6 +46,20 @@
   margin: 0 6px;
 }
 
+.editor-btn--bubble {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  font-weight: 500;
+  padding: 6px 12px;
+}
+
+.editor-btn--bubble:hover {
+  background: var(--bg-chrome);
+  color: var(--text-primary);
+}
+
 .editor-panel__body {
   display: flex;
   flex: 1;
